@@ -1,6 +1,6 @@
 ---
 name: "[FEAT] 기능 추가"
-about: 새로운 기능을 추가할 때 사용하는 PR 템플릿
+about: PR 템플릿
 title: "[FEAT] "
 ---
 
