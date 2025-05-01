@@ -38,7 +38,7 @@ public class Trade {
     private Integer tokenPrice;
 
     @Column(nullable = false)
-    private Integer tokenAmount;
+    private Integer tradeTokenAmount;
 
     @Column(nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime tradeDate;

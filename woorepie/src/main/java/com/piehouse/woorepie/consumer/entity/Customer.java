@@ -50,7 +50,7 @@ public class Customer {
     private Integer accountBalance;
 
     @Column(length = 100)
-    private String customerkyc;
+    private String customerKyc;
 
     private LocalDateTime customerKycDate;
 
