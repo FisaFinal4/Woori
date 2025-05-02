@@ -1,4 +1,4 @@
-package com.piehouse.woorepie.consumer.entity;
+package com.piehouse.woorepie.customer.entity;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;

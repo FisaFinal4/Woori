@@ -1,7 +1,7 @@
 package com.piehouse.woorepie.subscription.entity;
 
-import com.piehouse.woorepie.consumer.entity.Customer;
-import com.piehouse.woorepie.etate.entity.Estate;
+import com.piehouse.woorepie.customer.entity.Customer;
+import com.piehouse.woorepie.estate.entity.entity.Estate;
 import jakarta.persistence.*;
 import lombok.*;
 

@@ -1,33 +1,36 @@
-package com.piehouse.woorepie.etate.entity;
+package com.piehouse.woorepie.customer.entity;
 
+import com.piehouse.woorepie.estate.entity.entity.Estate;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
-
 @Entity
-@Table(name = "estate_price")
+@Table(name = "account")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
-@ToString(exclude = "estate")
+@ToString(exclude = {"customer", "estate"})
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class EstatePrice {
+public class Account {
 
     @EqualsAndHashCode.Include
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long estatePriceId;
+    private Long accountId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Customer customer;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "estate_id", nullable = false)
     private Estate estate;
 
     @Column(nullable = false)
-    private Integer estatePrice;
+    private Integer accountTokenAmount;
 
-    @Column(nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-    private LocalDateTime estatePriceDate;
+    @Column(nullable = false)
+    private Integer totalAccountAmount;
 
 }

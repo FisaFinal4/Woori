@@ -1,4 +1,4 @@
-package com.piehouse.woorepie.etate.entity;
+package com.piehouse.woorepie.estate.entity.entity;
 
 import com.piehouse.woorepie.agent.entity.Agent;
 import jakarta.persistence.*;
