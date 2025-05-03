@@ -1,0 +1,14 @@
+package com.piehouse.woorepie.customer.repository;
+
+import com.piehouse.woorepie.customer.entity.Account;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+
+@Repository
+public interface AccountRepository extends JpaRepository<Account, Long> {
+    // Account 테이블에서 customer id와 estate id로 조회
+    Optional<Account> findByCustomer_CustomerIdAndEstate_EstateId(Long customerId, Long estateId);
+}

@@ -6,6 +6,7 @@ public enum ErrorCode {
     // 400: 잘못된 요청
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "입력값이 유효하지 않습니다."),
+    TOKEN_NON_EXIST(HttpStatus.BAD_REQUEST, "해당 고객의 보유 내역이 없습니다."),
 
     // 401: 인증 실패
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 일치하지 않습니다."),

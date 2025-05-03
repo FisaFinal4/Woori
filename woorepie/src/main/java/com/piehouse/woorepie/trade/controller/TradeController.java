@@ -22,7 +22,8 @@ public class TradeController {
 
     @PostMapping("/sell")
     public ResponseEntity<String> sell(@RequestBody SellEstateRequest request) {
-        tradeService.sell(request);
+        Long customerId = 123L;
+        tradeService.sell(request, customerId);
         return ResponseEntity.ok("매도 요청 완료");
     }
 
