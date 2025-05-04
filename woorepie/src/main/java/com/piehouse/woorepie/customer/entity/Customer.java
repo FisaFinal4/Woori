@@ -3,6 +3,7 @@ package com.piehouse.woorepie.customer.entity;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -35,7 +36,8 @@ public class Customer {
     @Column(length = 20, nullable = false, unique = true)
     private String customerPhoneNumber;
 
-    @Column(columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    @CreationTimestamp
+    @Column(updatable = false)
     private LocalDateTime customerJoinDate;
 
     private LocalDate customerDateOfBirth;
