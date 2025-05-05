@@ -8,6 +8,8 @@ public interface CustomerService {
 
     public void customerLogin(LoginCustomerRequest customerRequest, HttpServletRequest request);
 
+    public void customerLogout(HttpServletRequest request);
+
     public void CreateCustomer(CreateCustomerRequest customerRequest);
 
 }

@@ -61,6 +61,13 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    public void customerLogout(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null) session.invalidate();
+        SecurityContextHolder.clearContext();
+    }
+
+    @Override
     @Transactional
     public void CreateCustomer(CreateCustomerRequest customerRequest) {
         if (customerRepository.existsByCustomerEmail(customerRequest.getCustomerEmail())||

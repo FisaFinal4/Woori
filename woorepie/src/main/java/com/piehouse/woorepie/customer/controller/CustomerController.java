@@ -29,6 +29,12 @@ public class CustomerController {
         return ApiResponseUtil.success(null, request);
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request) {
+        customerService.customerLogout(request);
+        return ApiResponseUtil.success(null, request);
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<Void>> signCustomer(@Valid @RequestBody CreateCustomerRequest customerRequest, HttpServletRequest request) {
         log.info("Signing agent request");
