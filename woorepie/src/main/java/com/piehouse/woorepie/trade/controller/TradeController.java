@@ -27,10 +27,4 @@ public class TradeController {
         return ResponseEntity.ok("매도 요청 완료");
     }
 
-    @GetMapping("/test-redis")
-    public ResponseEntity<String> testRedis() {
-        tradeService.testRedisConnection();
-        return ResponseEntity.ok("Redis 테스트 완료");
-    }
-
 }
