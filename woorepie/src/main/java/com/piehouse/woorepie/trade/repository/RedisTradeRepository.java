@@ -4,6 +4,7 @@ import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
 import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Repository;
 
 import java.util.Set;
@@ -57,13 +58,59 @@ public class RedisTradeRepository {
         return redisEstateTradeTemplate.opsForZSet().rangeByScore(key, 0, Double.MAX_VALUE);
     }
 
-    // 매물 기준 주문 삭제
-    public void removeEstateOrder(String key, RedisEstateTradeValue order) {
-        redisEstateTradeTemplate.opsForZSet().remove(key, order);
+    // 고객별 매수 주문 조회 (시간순)
+    public Set<RedisCustomerTradeValue> getCustomerBuyOrders(Long customerId) {
+        String key = String.format(CUSTOMER_BUY_KEY, customerId);
+        return redisCustomerTradeTemplate.opsForZSet().rangeByScore(key, 0, Double.MAX_VALUE);
     }
 
-    // 고객 기준 주문 삭제
-    public void removeCustomerOrder(String key, RedisCustomerTradeValue order) {
-        redisCustomerTradeTemplate.opsForZSet().remove(key, order);
+    // 고객별 매도 주문 조회 (시간순)
+    public Set<RedisCustomerTradeValue> getCustomerSellOrders(Long customerId) {
+        String key = String.format(CUSTOMER_SELL_KEY, customerId);
+        return redisCustomerTradeTemplate.opsForZSet().rangeByScore(key, 0, Double.MAX_VALUE);
+    }
+
+    // 매물 기준 가장 먼저 들어온 매수 주문 꺼내기 + 고객 기준에서도 함께 삭제
+    public RedisEstateTradeValue popOldestBuyOrderFromBoth(Long estateId) {
+        // 1. 매물 기준에서 가장 먼저 들어온 매수 주문 꺼내기 (자동 삭제됨)
+        String estateKey = String.format(ESTATE_BUY_KEY, estateId);
+        Set<ZSetOperations.TypedTuple<RedisEstateTradeValue>> popped =
+                redisEstateTradeTemplate.opsForZSet().popMin(estateKey, 1);
+
+        if (popped.isEmpty()) {
+            return null;
+        }
+
+        // 2. 꺼낸 주문 정보 확인
+        RedisEstateTradeValue estateBuyOrder = popped.iterator().next().getValue();
+        Long customerId = estateBuyOrder.getCustomerId();
+        long timestamp = estateBuyOrder.getTimestamp();
+
+        // 3. 고객 기준에서 같은 타임스탬프를 가진 주문 삭제
+        String customerKey = String.format(CUSTOMER_BUY_KEY, customerId);
+        redisCustomerTradeTemplate.opsForZSet().removeRangeByScore(customerKey, timestamp, timestamp);
+
+        return estateBuyOrder;
+    }
+
+    // 매물 기준 가장 먼저 들어온 매도 주문 꺼내기 + 고객 기준에서도 함께 삭제
+    public RedisEstateTradeValue popOldestSellOrderFromBoth(Long estateId) {
+        // 매수와 동일한 로직, 키만 sell로 변경
+        String estateKey = String.format(ESTATE_SELL_KEY, estateId);
+        Set<ZSetOperations.TypedTuple<RedisEstateTradeValue>> popped =
+                redisEstateTradeTemplate.opsForZSet().popMin(estateKey, 1);
+
+        if (popped.isEmpty()) {
+            return null;
+        }
+
+        RedisEstateTradeValue estateSellOrder = popped.iterator().next().getValue();
+        Long customerId = estateSellOrder.getCustomerId();
+        long timestamp = estateSellOrder.getTimestamp();
+
+        String customerKey = String.format(CUSTOMER_SELL_KEY, customerId);
+        redisCustomerTradeTemplate.opsForZSet().removeRangeByScore(customerKey, timestamp, timestamp);
+
+        return estateSellOrder;
     }
 }
