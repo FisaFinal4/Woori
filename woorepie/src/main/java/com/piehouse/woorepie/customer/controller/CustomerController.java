@@ -1,5 +1,6 @@
 package com.piehouse.woorepie.customer.controller;
 
+import com.piehouse.woorepie.customer.dto.SessionCustomer;
 import com.piehouse.woorepie.customer.dto.request.CreateCustomerRequest;
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
 import com.piehouse.woorepie.customer.service.CustomerService;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -25,19 +27,21 @@ public class CustomerController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<Void>> login(@RequestBody LoginCustomerRequest dto,
                                    HttpServletRequest request) {
+        log.info("Login customer request");
         customerService.customerLogin(dto, request);
         return ApiResponseUtil.success(null, request);
     }
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request) {
+        log.info("Logout customer request");
         customerService.customerLogout(request);
         return ApiResponseUtil.success(null, request);
     }
 
-    @PostMapping
-    public ResponseEntity<ApiResponse<Void>> signCustomer(@Valid @RequestBody CreateCustomerRequest customerRequest, HttpServletRequest request) {
-        log.info("Signing agent request");
+    @PostMapping("/create")
+    public ResponseEntity<ApiResponse<Void>> createCustomer(@Valid @RequestBody CreateCustomerRequest customerRequest, HttpServletRequest request) {
+        log.info("Signing customer request");
         customerService.CreateCustomer(customerRequest);
         return ApiResponseUtil.of(HttpStatus.CREATED,"고객 가입 성공", null, request);
     }

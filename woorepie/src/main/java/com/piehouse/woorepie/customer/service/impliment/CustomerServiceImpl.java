@@ -1,5 +1,6 @@
 package com.piehouse.woorepie.customer.service.impliment;
 
+import com.piehouse.woorepie.customer.dto.SessionCustomer;
 import com.piehouse.woorepie.customer.dto.request.CreateCustomerRequest;
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
 import com.piehouse.woorepie.customer.entity.Customer;
@@ -12,7 +13,6 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -41,10 +41,12 @@ public class CustomerServiceImpl implements CustomerService {
         }
 
         try {
+
+            SessionCustomer principal = SessionCustomer.fromCustomer(customer);
             Authentication auth = new UsernamePasswordAuthenticationToken(
-                    customer.getCustomerId(),
+                    principal,
                     null,
-                    List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER"))
+                    principal.getAuthorities()
             );
 
             SecurityContext context = SecurityContextHolder.getContext();
@@ -70,7 +72,7 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     @Transactional
     public void CreateCustomer(CreateCustomerRequest customerRequest) {
-        if (customerRepository.existsByCustomerEmail(customerRequest.getCustomerEmail())||
+        if (customerRepository.existsByCustomerEmail(customerRequest.getCustomerEmail()) ||
                 customerRepository.existsByCustomerPhoneNumber(customerRequest.getCustomerPhoneNumber())) {
             throw new CustomException(ErrorCode.DUPLICATE_RESOURCE);
         }
@@ -86,7 +88,7 @@ public class CustomerServiceImpl implements CustomerService {
                     .build();
 
             customerRepository.save(customer);
-        }catch (Exception e) {
+        } catch (Exception e) {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
 
