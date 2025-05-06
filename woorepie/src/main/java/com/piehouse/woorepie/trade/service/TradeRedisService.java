@@ -29,4 +29,13 @@ public interface TradeRedisService {
 
     // 매물 기준 가장 먼저 들어온 매도 주문 꺼내기 + 고객 기준에서도 함께 삭제
     RedisEstateTradeValue popOldestSellOrderFromBoth(Long estateId);
+
+    // 새 매수 주문이 들어왔을 때 호출
+    void matchNewBuyOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice);
+
+    // 새 매도 주문이 들어왔을 때 호출
+    void matchNewSellOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice);
+
+    // 반복 매칭 메소드
+    void matchAllPossibleOrders(Long estateId);
 }

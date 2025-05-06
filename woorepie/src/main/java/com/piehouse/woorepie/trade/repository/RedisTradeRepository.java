@@ -113,4 +113,30 @@ public class RedisTradeRepository {
 
         return estateSellOrder;
     }
+
+    // 부분 체결된 매도 주문 업데이트 (원래 타임스탬프 유지)
+    public void updateSellOrderWithOriginalTimestamp(Long estateId, Long customerId,
+                                                     RedisEstateTradeValue estateSellOrder,
+                                                     RedisCustomerTradeValue customerSellOrder) {
+        // 매물 기준 매도 주문 업데이트
+        String estateKey = String.format(ESTATE_SELL_KEY, estateId);
+        redisEstateTradeTemplate.opsForZSet().add(estateKey, estateSellOrder, estateSellOrder.getTimestamp());
+
+        // 고객 기준 매도 주문 업데이트
+        String customerKey = String.format(CUSTOMER_SELL_KEY, customerId);
+        redisCustomerTradeTemplate.opsForZSet().add(customerKey, customerSellOrder, customerSellOrder.getTimestamp());
+    }
+
+    // 부분 체결된 매수 주문 업데이트 (원래 타임스탬프 유지)
+    public void updateBuyOrderWithOriginalTimestamp(Long estateId, Long customerId,
+                                                    RedisEstateTradeValue estateBuyOrder,
+                                                    RedisCustomerTradeValue customerBuyOrder) {
+        // 매물 기준 매수 주문 업데이트
+        String estateKey = String.format(ESTATE_BUY_KEY, estateId);
+        redisEstateTradeTemplate.opsForZSet().add(estateKey, estateBuyOrder, estateBuyOrder.getTimestamp());
+
+        // 고객 기준 매수 주문 업데이트
+        String customerKey = String.format(CUSTOMER_BUY_KEY, customerId);
+        redisCustomerTradeTemplate.opsForZSet().add(customerKey, customerBuyOrder, customerBuyOrder.getTimestamp());
+    }
 }
