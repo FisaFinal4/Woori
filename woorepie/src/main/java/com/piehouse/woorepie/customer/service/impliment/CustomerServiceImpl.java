@@ -3,6 +3,7 @@ package com.piehouse.woorepie.customer.service.impliment;
 import com.piehouse.woorepie.customer.dto.SessionCustomer;
 import com.piehouse.woorepie.customer.dto.request.CreateCustomerRequest;
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
+import com.piehouse.woorepie.customer.dto.response.GetCustomerResponse;
 import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.customer.service.CustomerService;
@@ -19,8 +20,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -71,7 +70,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     @Transactional
-    public void CreateCustomer(CreateCustomerRequest customerRequest) {
+    public void createCustomer(CreateCustomerRequest customerRequest) {
         if (customerRepository.existsByCustomerEmail(customerRequest.getCustomerEmail()) ||
                 customerRepository.existsByCustomerPhoneNumber(customerRequest.getCustomerPhoneNumber())) {
             throw new CustomException(ErrorCode.DUPLICATE_RESOURCE);
@@ -92,6 +91,25 @@ public class CustomerServiceImpl implements CustomerService {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
 
+    }
+
+    @Override
+    public GetCustomerResponse getCustomer(SessionCustomer sessionCustomer) {
+
+        Customer customer = customerRepository.findById(sessionCustomer.getCustomerId())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        try{
+            GetCustomerResponse getCustomerResponse = GetCustomerResponse.builder()
+                    .customerName(customer.getCustomerName())
+                    .customerEmail(customer.getCustomerEmail())
+                    .customerPhoneNumber(customer.getCustomerPhoneNumber())
+                    .customerAddress(customer.getCustomerAddress())
+                    .customerJoinDate(customer.getCustomerJoinDate())
+                    .build();
+            return getCustomerResponse;
+        }catch (Exception e) {
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
+        }
     }
 
 }

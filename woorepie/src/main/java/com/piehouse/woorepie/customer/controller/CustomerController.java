@@ -3,6 +3,7 @@ package com.piehouse.woorepie.customer.controller;
 import com.piehouse.woorepie.customer.dto.SessionCustomer;
 import com.piehouse.woorepie.customer.dto.request.CreateCustomerRequest;
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
+import com.piehouse.woorepie.customer.dto.response.GetCustomerResponse;
 import com.piehouse.woorepie.customer.service.CustomerService;
 import com.piehouse.woorepie.global.response.ApiResponse;
 import com.piehouse.woorepie.global.response.ApiResponseUtil;
@@ -42,8 +43,16 @@ public class CustomerController {
     @PostMapping("/create")
     public ResponseEntity<ApiResponse<Void>> createCustomer(@Valid @RequestBody CreateCustomerRequest customerRequest, HttpServletRequest request) {
         log.info("Signing customer request");
-        customerService.CreateCustomer(customerRequest);
+        customerService.createCustomer(customerRequest);
         return ApiResponseUtil.of(HttpStatus.CREATED,"고객 가입 성공", null, request);
+    }
+
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<GetCustomerResponse>> getCustomer(@AuthenticationPrincipal SessionCustomer sessionCustomer, HttpServletRequest request) {
+        log.info("Get customer request");
+        GetCustomerResponse getCustomerResponse = customerService.getCustomer(sessionCustomer);
+        return ApiResponseUtil.success(getCustomerResponse, request);
     }
 
 }
