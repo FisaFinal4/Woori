@@ -42,21 +42,19 @@ public class Customer {
 
     private LocalDate customerDateOfBirth;
 
-    @Column(length = 100)
+    @Column(length = 100, nullable = false)
     private String customerAddress;
 
-    @Column(length = 50, unique = true)
+    @Column(length = 20, nullable = false, unique = true)
     private String accountNumber;
 
-    @Column(columnDefinition = "INTEGER DEFAULT 0")
-    private Integer accountBalance;
+    @Builder.Default
+    private Integer accountBalance = 0;
 
-    @Column(length = 100)
+    @Column(length = 100, nullable = false, unique = true)
     private String customerKyc;
 
-    private LocalDateTime customerKycDate;
-
-    @Column(length = 1000)
+    @Column(length = 1000, nullable = false, unique = true)
     private String customerIdentificationUrl;
 
 }

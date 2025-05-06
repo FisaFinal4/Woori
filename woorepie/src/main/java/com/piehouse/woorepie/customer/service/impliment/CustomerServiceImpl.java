@@ -21,13 +21,17 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
     private final PasswordEncoder passwordEncoder;
-
+    private final SecureRandom secureRandom = new SecureRandom();
+    final int ACCOUNT_NUMBER_LENGTH = 15;
 
     @Override
     public void customerLogin(LoginCustomerRequest customerRequest, HttpServletRequest request) {
@@ -84,13 +88,32 @@ public class CustomerServiceImpl implements CustomerService {
                     .customerPhoneNumber(customerRequest.getCustomerPhoneNumber())
                     .customerAddress(customerRequest.getCustomerAddress())
                     .customerDateOfBirth(customerRequest.getCustomerDateOfBirth())
+                    .accountNumber(generateUniqueAccountNumber())
+                    .customerKyc(UUID.randomUUID().toString())
+                    .customerIdentificationUrl(customerRequest.getCustomerIdentificationUrl())
                     .build();
-
             customerRepository.save(customer);
         } catch (Exception e) {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
 
+    }
+
+    public String generateUniqueAccountNumber() {
+        String accountNumber;
+        do {
+            accountNumber = generateRandomDigits(ACCOUNT_NUMBER_LENGTH);
+        } while (customerRepository.existsByAccountNumber(accountNumber));
+        return accountNumber;
+    }
+
+    private String generateRandomDigits(int length) {
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            if(i==3||i==7||i==11) sb.append("-");
+            sb.append(secureRandom.nextInt(10));
+        }
+        return sb.toString();
     }
 
     @Override

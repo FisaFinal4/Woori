@@ -32,4 +32,7 @@ public class CreateCustomerRequest {
     @Past
     LocalDate customerDateOfBirth;
 
+    @NotNull
+    String customerIdentificationUrl;
+
 }
