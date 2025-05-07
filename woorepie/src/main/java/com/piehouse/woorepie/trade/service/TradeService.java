@@ -8,6 +8,9 @@ import org.springframework.stereotype.Service;
 public interface TradeService {
     void buy(BuyEstateRequest request);
     void sell(SellEstateRequest request, Long customerId);
+
+    //Redis 연동 확인용
+    //void testRedisConnection();
 }
 
 
