@@ -66,7 +66,7 @@ public class TradeServiceImpl implements TradeService {
 
     public void buy(BuyEstateRequest request, Long customerId) {
         int amount = request.getTradeTokenAmount();
-        int price = request.getTradePrice();
+        int price = request.getTokenPrice();
 
         if (!isValidBuyRequest(customerId, amount, price)) {
             throw new CustomException(ErrorCode.INSUFFICIENT_CASH);
