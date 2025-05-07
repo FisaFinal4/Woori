@@ -15,4 +15,7 @@ public class LoginCustomerRequest {
     @NotBlank
     String customerPassword;
 
+    @NotBlank
+    String customerPhoneNumber;
+
 }

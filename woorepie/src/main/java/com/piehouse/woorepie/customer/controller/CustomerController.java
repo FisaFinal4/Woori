@@ -24,7 +24,6 @@ public class CustomerController {
 
     private final CustomerService customerService;
 
-
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<Void>> login(@RequestBody LoginCustomerRequest dto,
                                    HttpServletRequest request) {

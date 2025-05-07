@@ -10,7 +10,7 @@ public enum ErrorCode {
     INSUFFICIENT_CASH(HttpStatus.BAD_REQUEST, "보유 현금이 부족합니다."), // 추가
 
     // 401: 인증 실패
-    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 일치하지 않습니다."),
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "로그인 정보가 일치하지 않습니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
     TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "토큰이 만료되었습니다."),
 

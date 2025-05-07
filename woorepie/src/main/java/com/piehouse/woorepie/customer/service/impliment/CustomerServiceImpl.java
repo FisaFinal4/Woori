@@ -43,6 +43,10 @@ public class CustomerServiceImpl implements CustomerService {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 
+        if (!customer.getCustomerPhoneNumber().equals(customerRequest.getCustomerPhoneNumber())) {
+            throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
         try {
 
             SessionCustomer principal = SessionCustomer.fromCustomer(customer);
