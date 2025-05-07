@@ -1,6 +1,6 @@
 package com.piehouse.woorepie.notice.entity;
 
-import com.piehouse.woorepie.estate.entity.entity.Estate;
+import com.piehouse.woorepie.estate.entity.Estate;
 import jakarta.persistence.*;
 import lombok.*;
 

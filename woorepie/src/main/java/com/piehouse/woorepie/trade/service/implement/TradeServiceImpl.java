@@ -4,7 +4,7 @@ import com.piehouse.woorepie.customer.entity.Account;
 import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
-import com.piehouse.woorepie.estate.entity.entity.Estate;
+import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.trade.dto.request.BuyEstateRequest;
