@@ -1,43 +1,72 @@
 package com.piehouse.woorepie.trade.service.implement;
 
 import com.piehouse.woorepie.customer.entity.Customer;
-import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.customer.repository.AccountRepository;
+import com.piehouse.woorepie.customer.repository.CustomerRepository;
+import com.piehouse.woorepie.estate.entity.entity.Estate;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.trade.dto.request.BuyEstateRequest;
 import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
 import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
 import com.piehouse.woorepie.trade.dto.request.SellEstateRequest;
-import com.piehouse.woorepie.trade.repository.RedisOrderRepository;
+import com.piehouse.woorepie.trade.entity.Trade;
+import com.piehouse.woorepie.trade.repository.RedisTradeRepository;
+import com.piehouse.woorepie.trade.repository.TradeRepository;
 import com.piehouse.woorepie.trade.service.TradeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import java.util.Objects;
-import java.util.Set;
-import com.piehouse.woorepie.estate.entity.entity.Estate;
-import com.piehouse.woorepie.estate.repository.EstateRepository;
-import com.piehouse.woorepie.trade.entity.Trade;
-import com.piehouse.woorepie.trade.repository.TradeRepository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TradeServiceImpl implements TradeService {
 
+    private final TradeRepository tradeRepository;
     private final AccountRepository accountRepository;
     private final CustomerRepository customerRepository;
-    private final RedisOrderRepository redisOrderRepository;
+    private final RedisTradeRepository redisOrderRepository;
 
     @Override
-    public void buy(BuyEstateRequest request) {
-        Long customerId = request.getCustomerId();
+    @Transactional
+    public Trade saveTrade(Estate estate, Customer seller, Customer buyer, int tradeTokenAmount, int tokenPrice) {
+        Trade trade = Trade.builder()
+                .estate(estate)
+                .seller(seller)
+                .buyer(buyer)
+                .tradeTokenAmount(tradeTokenAmount)
+                .tokenPrice(tokenPrice)
+                .tradeDate(LocalDateTime.now())
+                .build();
+
+        return tradeRepository.save(trade);
+    }
+
+    @Override
+    public List<Trade> getTradesByEstateId(Long estateId) {
+        return tradeRepository.findByEstate_EstateId(estateId);
+    }
+
+    @Override
+    public List<Trade> getTradesBySellerId(Long sellerId) {
+        return tradeRepository.findBySeller_CustomerId(sellerId);
+    }
+
+    @Override
+    public List<Trade> getTradesByBuyerId(Long buyerId) {
+        return tradeRepository.findByBuyer_CustomerId(buyerId);
+    }
+
+    public void buy(BuyEstateRequest request, Long customerId) {
         int amount = request.getTradeTokenAmount();
-        int price = request.getTokenPrice();
+        int price = request.getTradePrice();
 
         if (!isValidBuyRequest(customerId, amount, price)) {
             throw new CustomException(ErrorCode.INSUFFICIENT_CASH);
@@ -110,34 +139,5 @@ public class TradeServiceImpl implements TradeService {
                 .filter(order -> order.getCustomerId().equals(customerId) && order.getTokenAmount() < 0)
                 .mapToInt(RedisEstateTradeValue::getTokenAmount)
                 .sum();
-                
-    @Override
-    @Transactional
-    public Trade saveTrade(Estate estate, Customer seller, Customer buyer, int tradeTokenAmount, int tokenPrice) {
-        Trade trade = Trade.builder()
-                .estate(estate)
-                .seller(seller)
-                .buyer(buyer)
-                .tradeTokenAmount(tradeTokenAmount)
-                .tokenPrice(tokenPrice)
-                .tradeDate(LocalDateTime.now())
-                .build();
-
-        return tradeRepository.save(trade);
-    }
-
-    @Override
-    public List<Trade> getTradesByEstateId(Long estateId) {
-        return tradeRepository.findByEstate_EstateId(estateId);
-    }
-
-    @Override
-    public List<Trade> getTradesBySellerId(Long sellerId) {
-        return tradeRepository.findBySeller_CustomerId(sellerId);
-    }
-
-    @Override
-    public List<Trade> getTradesByBuyerId(Long buyerId) {
-        return tradeRepository.findByBuyer_CustomerId(buyerId);
     }
 }

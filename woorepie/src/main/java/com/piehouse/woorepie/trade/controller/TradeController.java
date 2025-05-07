@@ -16,7 +16,8 @@ public class TradeController {
 
     @PostMapping("/buy")
     public ResponseEntity<String> buy(@RequestBody BuyEstateRequest request) {
-        tradeService.buy(request);
+        Long customerId = 123L;  // TODO: 로그인 사용자 정보로 교체 예정
+        tradeService.buy(request, customerId);
         return ResponseEntity.ok("매수 요청 완료");
     }
 
@@ -26,7 +27,4 @@ public class TradeController {
         tradeService.sell(request, customerId);
         return ResponseEntity.ok("매도 요청 완료");
     }
-
-
-
 }
