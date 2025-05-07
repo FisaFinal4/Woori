@@ -33,4 +33,15 @@ public class Account {
     @Column(nullable = false)
     private Integer totalAccountAmount;
 
+    // 계좌 토큰 수량 업데이트 메소드
+    public Account updateTokenAmount(int newTokenAmount) {
+        this.accountTokenAmount = newTokenAmount;
+        return this;
+    }
+
+    // 계좌 총액 업데이트 메소드
+    public Account updateTotalAmount(int newTotalAmount) {
+        this.totalAccountAmount = newTotalAmount;
+        return this;
+    }
 }

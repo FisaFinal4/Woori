@@ -9,5 +9,5 @@ import lombok.Setter;
 public class BuyEstateRequest {
     private Long estateId;
     private Integer tradeTokenAmount;
-    private Integer tradePrice;
+    private Integer tokenPrice ;
 }
