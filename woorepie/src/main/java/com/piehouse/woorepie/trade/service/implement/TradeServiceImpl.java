@@ -14,11 +14,17 @@ import com.piehouse.woorepie.trade.service.TradeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
 import java.util.Objects;
 import java.util.Set;
+import com.piehouse.woorepie.estate.entity.entity.Estate;
+import com.piehouse.woorepie.estate.repository.EstateRepository;
+import com.piehouse.woorepie.trade.entity.Trade;
+import com.piehouse.woorepie.trade.repository.TradeRepository;
+import org.springframework.transaction.annotation.Transactional;
 
-@Slf4j
+import java.time.LocalDateTime;
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class TradeServiceImpl implements TradeService {
@@ -104,5 +110,34 @@ public class TradeServiceImpl implements TradeService {
                 .filter(order -> order.getCustomerId().equals(customerId) && order.getTokenAmount() < 0)
                 .mapToInt(RedisEstateTradeValue::getTokenAmount)
                 .sum();
+                
+    @Override
+    @Transactional
+    public Trade saveTrade(Estate estate, Customer seller, Customer buyer, int tradeTokenAmount, int tokenPrice) {
+        Trade trade = Trade.builder()
+                .estate(estate)
+                .seller(seller)
+                .buyer(buyer)
+                .tradeTokenAmount(tradeTokenAmount)
+                .tokenPrice(tokenPrice)
+                .tradeDate(LocalDateTime.now())
+                .build();
+
+        return tradeRepository.save(trade);
+    }
+
+    @Override
+    public List<Trade> getTradesByEstateId(Long estateId) {
+        return tradeRepository.findByEstate_EstateId(estateId);
+    }
+
+    @Override
+    public List<Trade> getTradesBySellerId(Long sellerId) {
+        return tradeRepository.findBySeller_CustomerId(sellerId);
+    }
+
+    @Override
+    public List<Trade> getTradesByBuyerId(Long buyerId) {
+        return tradeRepository.findByBuyer_CustomerId(buyerId);
     }
 }

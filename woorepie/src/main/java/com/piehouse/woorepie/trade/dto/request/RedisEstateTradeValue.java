@@ -12,8 +12,4 @@ public class RedisEstateTradeValue {
     private int tokenAmount;
     private int tokenPrice;
     private long timestamp;
-
-    public Object getEstateId() {
-        return customerId;
-    }
 }

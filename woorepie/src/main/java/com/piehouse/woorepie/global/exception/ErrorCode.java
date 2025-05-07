@@ -19,6 +19,7 @@ public enum ErrorCode {
 
     // 404: 리소스 없음
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 사용자를 찾을 수 없습니다."),
+    ESTATE_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 매물을 찾을 수 없습니다."),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 리소스를 찾을 수 없습니다."),
     ACCOUNT_NON_EXIST(HttpStatus.NOT_FOUND, "사용자 계좌를 찾을 수 없습니다."), // 추가
 

@@ -1,0 +1,222 @@
+package com.piehouse.woorepie.trade.service.implement;
+
+import com.piehouse.woorepie.customer.entity.Customer;
+import com.piehouse.woorepie.customer.repository.CustomerRepository;
+import com.piehouse.woorepie.estate.entity.entity.Estate;
+import com.piehouse.woorepie.estate.repository.EstateRepository;
+import com.piehouse.woorepie.global.exception.CustomException;
+import com.piehouse.woorepie.global.exception.ErrorCode;
+import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
+import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
+import com.piehouse.woorepie.trade.repository.RedisTradeRepository;
+import com.piehouse.woorepie.trade.service.TradeRedisService;
+import com.piehouse.woorepie.trade.service.TradeService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.Set;
+
+@Service
+@RequiredArgsConstructor
+public class TradeRedisServiceImpl implements TradeRedisService {
+
+    private final RedisTradeRepository redisRepository;
+    private final TradeService tradeService;
+    private final EstateRepository estateRepository;
+    private final CustomerRepository customerRepository;
+
+    // 매물과 고객 기준 매수 주문 동시 저장
+    @Override
+    public void saveBuyOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice) {
+        long timestamp = System.currentTimeMillis();
+        RedisEstateTradeValue estateBuyOrder = new RedisEstateTradeValue(customerId, tokenAmount, tokenPrice, timestamp);
+        RedisCustomerTradeValue customerBuyOrder = new RedisCustomerTradeValue(estateId, tokenAmount, tokenPrice, timestamp);
+
+        redisRepository.saveEstateBuyOrder(estateBuyOrder, estateId);
+        redisRepository.saveCustomerBuyOrder(customerBuyOrder, customerId);
+    }
+
+    // 매물과 고객 기준 매도 주문 동시 저장
+    @Override
+    public void saveSellOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice) {
+        long timestamp = System.currentTimeMillis();
+        RedisEstateTradeValue estateSellOrder = new RedisEstateTradeValue(customerId, -tokenAmount, tokenPrice, timestamp);
+        RedisCustomerTradeValue customerSellOrder = new RedisCustomerTradeValue(estateId, -tokenAmount, tokenPrice, timestamp);
+
+        redisRepository.saveEstateSellOrder(estateSellOrder, estateId);
+        redisRepository.saveCustomerSellOrder(customerSellOrder, customerId);
+    }
+
+    // 매물 기준 매수 주문 전체 조회 (시간순)
+    @Override
+    public Set<RedisEstateTradeValue> getEstateBuyOrders(Long estateId) {
+        return redisRepository.getEstateBuyOrders(estateId);
+    }
+
+    // 매물 기준 매도 주문 전체 조회 (시간순)
+    @Override
+    public Set<RedisEstateTradeValue> getEstateSellOrders(Long estateId) {
+        return redisRepository.getEstateSellOrders(estateId);
+    }
+
+    // 고객 기준 매수 주문 전체 조회 (시간순)
+    @Override
+    public Set<RedisCustomerTradeValue> getCustomerBuyOrders(Long customerId) {
+        return redisRepository.getCustomerBuyOrders(customerId);
+    }
+
+    // 고객 기준 매도 주문 전체 조회 (시간순)
+    @Override
+    public Set<RedisCustomerTradeValue> getCustomerSellOrders(Long customerId) {
+        return redisRepository.getCustomerSellOrders(customerId);
+    }
+
+    // 매물 기준 가장 먼저 들어온 매수 주문 꺼내기 + 고객 기준에서도 함께 삭제
+    @Override
+    public RedisEstateTradeValue popOldestBuyOrderFromBoth(Long estateId) {
+        return redisRepository.popOldestBuyOrderFromBoth(estateId);
+    }
+
+    // 매물 기준 가장 먼저 들어온 매도 주문 꺼내기 + 고객 기준에서도 함께 삭제
+    @Override
+    public RedisEstateTradeValue popOldestSellOrderFromBoth(Long estateId) {
+        return redisRepository.popOldestSellOrderFromBoth(estateId);
+    }
+
+    @Override
+    public void matchNewBuyOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice) {
+        saveBuyOrder(estateId, customerId, tokenAmount, tokenPrice);
+        matchAllPossibleOrders(estateId); // 모든 가능한 매칭 시도
+    }
+
+    @Override
+    public void matchNewSellOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice) {
+        saveSellOrder(estateId, customerId, tokenAmount, tokenPrice);
+        matchAllPossibleOrders(estateId); // 모든 가능한 매칭 시도
+    }
+
+    @Override
+    public void matchAllPossibleOrders(Long estateId) {
+        while (true) {
+            // 1. 가장 오래된 매수/매도 주문 꺼내기
+            RedisEstateTradeValue buyOrder = redisRepository.popOldestBuyOrderFromBoth(estateId);
+            RedisEstateTradeValue sellOrder = redisRepository.popOldestSellOrderFromBoth(estateId);
+
+            // 2. 둘 중 하나라도 없으면 종료
+            if (buyOrder == null || sellOrder == null) {
+                if (buyOrder != null) reinsertBuyOrder(estateId, buyOrder);
+                if (sellOrder != null) reinsertSellOrder(estateId, sellOrder);
+                break;
+            }
+
+            // 3. 실제 매칭 처리 (부분 체결 포함)
+            processMatch(estateId, buyOrder, sellOrder);
+        }
+    }
+
+    // 공통 매칭 로직 (매수 주문과 매도 주문 체결)
+    private void processMatch(Long estateId, RedisEstateTradeValue buyOrder, RedisEstateTradeValue sellOrder) {
+        // 매칭 수량 계산 (최소값)
+        int buyAmount = buyOrder.getTokenAmount();
+        int sellAmount = -sellOrder.getTokenAmount(); // 양수로 변환
+        int matchAmount = Math.min(buyAmount, sellAmount);
+
+        // 부분 체결 처리
+        int buyRemaining = buyAmount - matchAmount;
+        int sellRemaining = sellAmount - matchAmount;
+
+        // 매수 주문 처리
+        if (buyRemaining > 0) {
+            // 부분 체결된 매수 주문 다시 저장
+            RedisEstateTradeValue updatedBuyOrder = new RedisEstateTradeValue(
+                    buyOrder.getCustomerId(),
+                    buyRemaining,
+                    buyOrder.getTokenPrice(),
+                    buyOrder.getTimestamp() // 원래 타임스탬프 유지
+            );
+
+            RedisCustomerTradeValue updatedCustomerBuyOrder = new RedisCustomerTradeValue(
+                    estateId,
+                    buyRemaining,
+                    buyOrder.getTokenPrice(),
+                    buyOrder.getTimestamp() // 원래 타임스탬프 유지
+            );
+
+            redisRepository.updateBuyOrderWithOriginalTimestamp(
+                    estateId, buyOrder.getCustomerId(), updatedBuyOrder, updatedCustomerBuyOrder
+            );
+        }
+
+        // 매도 주문 처리
+        if (sellRemaining > 0) {
+            // 부분 체결된 매도 주문 다시 저장
+            RedisEstateTradeValue updatedSellOrder = new RedisEstateTradeValue(
+                    sellOrder.getCustomerId(),
+                    -sellRemaining, // 매도는 음수로 저장
+                    sellOrder.getTokenPrice(),
+                    sellOrder.getTimestamp() // 원래 타임스탬프 유지
+            );
+
+            RedisCustomerTradeValue updatedCustomerSellOrder = new RedisCustomerTradeValue(
+                    estateId,
+                    -sellRemaining, // 매도는 음수로 저장
+                    sellOrder.getTokenPrice(),
+                    sellOrder.getTimestamp() // 원래 타임스탬프 유지
+            );
+
+            redisRepository.updateSellOrderWithOriginalTimestamp(
+                    estateId, sellOrder.getCustomerId(), updatedSellOrder, updatedCustomerSellOrder
+            );
+        }
+
+        saveTradeTransaction(estateId, sellOrder.getCustomerId(), buyOrder.getCustomerId(), matchAmount, sellOrder.getTokenPrice());
+    }
+
+    // 체결 내역 저장
+    private void saveTradeTransaction(Long estateId, Long sellerId, Long buyerId, int amount, int price) {
+        // 필요한 엔티티들 조회
+        Estate estate = estateRepository.findById(estateId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
+
+        Customer seller = customerRepository.findById(sellerId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        Customer buyer = customerRepository.findById(buyerId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 거래 내역 저장
+        tradeService.saveTrade(estate, seller, buyer, amount, price);
+    }
+
+    // pop한 매수 주문 원래 타임스탬프 유지해서 저장
+    public void reinsertBuyOrder(Long estateId, RedisEstateTradeValue buyOrder) {
+        Long customerId = buyOrder.getCustomerId();
+
+        RedisCustomerTradeValue customerBuyOrder = new RedisCustomerTradeValue(
+                estateId,
+                buyOrder.getTokenAmount(),
+                buyOrder.getTokenPrice(),
+                buyOrder.getTimestamp()
+        );
+
+        redisRepository.updateBuyOrderWithOriginalTimestamp(
+                estateId, customerId, buyOrder, customerBuyOrder
+        );
+    }
+
+    // pop한 매도 주문 원래 타임스탬프 유지해서 저장
+    public void reinsertSellOrder(Long estateId, RedisEstateTradeValue sellOrder) {
+        Long customerId = sellOrder.getCustomerId();
+
+        RedisCustomerTradeValue customerSellOrder = new RedisCustomerTradeValue(
+                estateId,
+                sellOrder.getTokenAmount(),
+                sellOrder.getTokenPrice(),
+                sellOrder.getTimestamp()
+        );
+
+        redisRepository.updateSellOrderWithOriginalTimestamp(
+                estateId, customerId, sellOrder, customerSellOrder
+        );
+    }
+}
