@@ -7,6 +7,9 @@ import com.piehouse.woorepie.trade.entity.Trade;
 import java.util.List;
 
 public interface TradeService {
+    void buy(BuyEstateRequest request);
+    void sell(SellEstateRequest request, Long customerId);
+
     // 거래 저장
     Trade saveTrade(Estate estate, Customer seller, Customer buyer, int tradeTokenAmount, int tokenPrice);
 
