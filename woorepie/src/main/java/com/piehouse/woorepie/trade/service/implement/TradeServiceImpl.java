@@ -9,9 +9,11 @@ import com.piehouse.woorepie.trade.dto.request.BuyEstateRequest;
 import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
 import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
 import com.piehouse.woorepie.trade.dto.request.SellEstateRequest;
-import com.piehouse.woorepie.trade.repository.RedisOrderRepository;
+import com.piehouse.woorepie.trade.repository.RedisTradeRepository;
+import com.piehouse.woorepie.trade.repository.RedisTradeRepository;
 import com.piehouse.woorepie.trade.service.TradeService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import java.util.Objects;
@@ -27,15 +29,15 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Log4j2
 public class TradeServiceImpl implements TradeService {
 
     private final AccountRepository accountRepository;
     private final CustomerRepository customerRepository;
-    private final RedisOrderRepository redisOrderRepository;
+    private final RedisTradeRepository redisOrderRepository;
+    private final TradeRepository tradeRepository;
 
-    @Override
-    public void buy(BuyEstateRequest request) {
-        Long customerId = request.getCustomerId();
+    public void buy(BuyEstateRequest request, Long customerId) {
         int amount = request.getTradeTokenAmount();
         int price = request.getTokenPrice();
 
@@ -110,6 +112,7 @@ public class TradeServiceImpl implements TradeService {
                 .filter(order -> order.getCustomerId().equals(customerId) && order.getTokenAmount() < 0)
                 .mapToInt(RedisEstateTradeValue::getTokenAmount)
                 .sum();
+    }
                 
     @Override
     @Transactional
