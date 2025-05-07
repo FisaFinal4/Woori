@@ -21,14 +21,14 @@ public class TradeRedisController { // Redis 동작 테스트용 Controller
     // 매수 주문 저장 (매물/고객 기준 동시에)
     @PostMapping("/buy")
     public ResponseEntity<ApiResponse<String>> saveBuyOrder(@RequestBody BuyEstateRequest request, @RequestHeader("customerId") Long customerId, HttpServletRequest httpRequest) {
-        tradeRedisService.saveBuyOrder(request.getEstateId(), customerId, request.getTradeTokenAmount(), request.getTradePrice());
+        tradeRedisService.saveBuyOrder(request.getEstateId(), customerId, request.getTradeTokenAmount(), request.getTokenPrice());
         return ApiResponseUtil.success("매수 주문 저장 완료", httpRequest);
     }
 
     // 매도 주문 저장 (매물/고객 기준 동시에)
     @PostMapping("/sell")
     public ResponseEntity<ApiResponse<String>> saveSellOrder(@RequestBody SellEstateRequest request, @RequestHeader("customerId") Long customerId, HttpServletRequest httpRequest) {
-        tradeRedisService.saveSellOrder(request.getEstateId(), customerId, request.getTradeTokenAmount(), request.getTradePrice());
+        tradeRedisService.saveSellOrder(request.getEstateId(), customerId, request.getTradeTokenAmount(), request.getTokenPrice());
         return ApiResponseUtil.success("매도 주문 저장 완료", httpRequest);
     }
 
