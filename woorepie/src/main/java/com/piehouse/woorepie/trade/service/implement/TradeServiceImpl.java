@@ -1,19 +1,21 @@
 package com.piehouse.woorepie.trade.service.implement;
 
-import com.piehouse.woorepie.customer.entity.Account;
+import com.piehouse.woorepie.customer.entity.Customer;
+import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.trade.dto.request.BuyEstateRequest;
+import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
 import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
 import com.piehouse.woorepie.trade.dto.request.SellEstateRequest;
+import com.piehouse.woorepie.trade.repository.RedisOrderRepository;
 import com.piehouse.woorepie.trade.service.TradeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
 import java.util.Set;
 
 @Slf4j
@@ -21,13 +23,51 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class TradeServiceImpl implements TradeService {
 
-    private final RedisTemplate<String, RedisEstateTradeValue> redisEstateTradeTemplate;
     private final AccountRepository accountRepository;
+    private final CustomerRepository customerRepository;
+    private final RedisOrderRepository redisOrderRepository;
 
     @Override
     public void buy(BuyEstateRequest request) {
-        // 추후 구현 예정
-        System.out.println("[매수 요청 도착]: " + request);
+        Long customerId = request.getCustomerId();
+        int amount = request.getTradeTokenAmount();
+        int price = request.getTokenPrice();
+
+        if (!isValidBuyRequest(customerId, amount, price)) {
+            throw new CustomException(ErrorCode.INSUFFICIENT_CASH);
+        }
+
+        // Kafka 연동 또는 Redis 저장은 추후 구현
+        System.out.printf("[매수 처리 완료] 고객: %d, 매수량: %d, 단가: %d\n", customerId, amount, price);
+    }
+
+    private boolean isValidBuyRequest(Long customerId, int newTokenAmount, int newTokenPrice) {
+        int newBuyCost = newTokenAmount * newTokenPrice;
+        int cumulativeBuyCost = getCumulativeBuyCost(customerId);
+
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NON_EXIST));
+
+        int availableCash = customer.getAccountBalance();
+
+        log.info("[매수 유효성 검증] 고객: {}, 기존 요청 금액: {}, 신규 요청 금액: {}, 총합: {}, 보유 현금: {}",
+                customerId, cumulativeBuyCost, newBuyCost, cumulativeBuyCost + newBuyCost, availableCash);
+
+        return availableCash >= (cumulativeBuyCost + newBuyCost);
+    }
+
+    private int getCumulativeBuyCost(Long customerId) {
+        Set<RedisCustomerTradeValue> buyOrders = redisOrderRepository.getCustomerBuyOrders(customerId);
+
+        if (buyOrders == null || buyOrders.isEmpty()) {
+            log.info("[누적 매수 금액 조회] 데이터 없음 - customer:{}", customerId);
+            return 0;
+        }
+
+        return buyOrders.stream()
+                .filter(Objects::nonNull)
+                .mapToInt(order -> order.getTokenAmount() * order.getTokenPrice())
+                .sum();
     }
 
     @Override
@@ -42,29 +82,27 @@ public class TradeServiceImpl implements TradeService {
         // Kafka 연동은 추후 처리
         System.out.println("[매도 처리 완료] 고객: " + customerId + ", 부동산: " + estateId + ", 매도량: " + sellAmount);
     }
-    //매물 누적 매도 계산 로직
-    private int getCumulativeSellAmount(Long customerId, Long estateId) {
-        String key = "estate:" + estateId + ":sell";
-        Set<ZSetOperations.TypedTuple<RedisEstateTradeValue>> entries = redisEstateTradeTemplate.opsForZSet().rangeWithScores(key, 0, -1);
 
-        if (entries == null || entries.isEmpty()) {
-            log.info("데이터 없음");
+    private boolean isValidSellRequest(Long customerId, Long estateId, int newSellAmount) {
+        int requestedSellAmount = getCumulativeSellAmount(customerId, estateId);
+        int ownedAmount = accountRepository.findByCustomer_CustomerIdAndEstate_EstateId(customerId, estateId)
+                .orElseThrow(() -> new CustomException(ErrorCode.TOKEN_NON_EXIST))
+                .getAccountTokenAmount();
+
+        return ownedAmount + (requestedSellAmount + newSellAmount) >= 0;
+    }
+
+    private int getCumulativeSellAmount(Long customerId, Long estateId) {
+        Set<RedisEstateTradeValue> sellOrders = redisOrderRepository.getEstateSellOrders(estateId);
+
+        if (sellOrders == null || sellOrders.isEmpty()) {
+            log.info("[누적 매도량 조회] 데이터 없음 - estate:{}, customer:{}", estateId, customerId);
             return 0;
         }
 
-        return entries.stream()
-                .map(ZSetOperations.TypedTuple::getValue)
-                .filter(value -> value.getCustomerId().equals(customerId) && value.getTokenAmount() < 0)
+        return sellOrders.stream()
+                .filter(order -> order.getCustomerId().equals(customerId) && order.getTokenAmount() < 0)
                 .mapToInt(RedisEstateTradeValue::getTokenAmount)
                 .sum();
-    }
-    // 매도 요청 유효성 검증
-    private boolean isValidSellRequest(Long customerId, Long estateId, int newSellAmount) {
-        int requestedSellAmount = getCumulativeSellAmount(customerId, estateId);
-        Account account = accountRepository.findByCustomer_CustomerIdAndEstate_EstateId(customerId, estateId)
-                .orElseThrow(() -> new CustomException(ErrorCode.TOKEN_NON_EXIST));
-        int ownedAmount = account.getAccountTokenAmount();
-
-        return ownedAmount + (requestedSellAmount + newSellAmount) >= 0;
     }
 }
