@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class RedisCustomerTradeValue {
     private Long estateId;
-    private int tokenAmount;
+    private int tradeTokenAmount ;
     private int tokenPrice;
     private long timestamp;
 }

@@ -80,7 +80,7 @@ public class TradeRedisController { // Redis 동작 테스트용 Controller
         tradeRedisService.matchNewBuyOrder(
                 request.getEstateId(),
                 customerId,
-                request.getTokenAmount(),
+                request.getTradeTokenAmount(),
                 request.getTokenPrice()
         );
         return ResponseEntity.ok("매수 매칭 처리 완료");
@@ -92,7 +92,7 @@ public class TradeRedisController { // Redis 동작 테스트용 Controller
         tradeRedisService.matchNewSellOrder(
                 request.getEstateId(),
                 customerId,
-                request.getTokenAmount(),
+                request.getTradeTokenAmount(),
                 request.getTokenPrice()
         );
         return ResponseEntity.ok("매도 매칭 처리 완료");

@@ -117,8 +117,8 @@ public class TradeRedisServiceImpl implements TradeRedisService {
     // 공통 매칭 로직 (매수 주문과 매도 주문 체결)
     private void processMatch(Long estateId, RedisEstateTradeValue buyOrder, RedisEstateTradeValue sellOrder) {
         // 매칭 수량 계산 (최소값)
-        int buyAmount = buyOrder.getTokenAmount();
-        int sellAmount = -sellOrder.getTokenAmount(); // 양수로 변환
+        int buyAmount = buyOrder.getTradeTokenAmount();
+        int sellAmount = -sellOrder.getTradeTokenAmount(); // 양수로 변환
         int matchAmount = Math.min(buyAmount, sellAmount);
 
         // 부분 체결 처리
@@ -194,7 +194,7 @@ public class TradeRedisServiceImpl implements TradeRedisService {
 
         RedisCustomerTradeValue customerBuyOrder = new RedisCustomerTradeValue(
                 estateId,
-                buyOrder.getTokenAmount(),
+                buyOrder.getTradeTokenAmount(),
                 buyOrder.getTokenPrice(),
                 buyOrder.getTimestamp()
         );
@@ -210,7 +210,7 @@ public class TradeRedisServiceImpl implements TradeRedisService {
 
         RedisCustomerTradeValue customerSellOrder = new RedisCustomerTradeValue(
                 estateId,
-                sellOrder.getTokenAmount(),
+                sellOrder.getTradeTokenAmount(),
                 sellOrder.getTokenPrice(),
                 sellOrder.getTimestamp()
         );

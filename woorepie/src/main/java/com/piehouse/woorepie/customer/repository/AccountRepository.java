@@ -1,6 +1,8 @@
 package com.piehouse.woorepie.customer.repository;
 
 import com.piehouse.woorepie.customer.entity.Account;
+import com.piehouse.woorepie.customer.entity.Customer;
+import com.piehouse.woorepie.estate.entity.entity.Estate;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -15,5 +17,9 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     // 매수 검증용: 고객의 전체 계좌 조회
     Optional<Account> findByCustomer_CustomerId(Long customerId); // ✅ Object → Account 로 수정
 
+    // 고객과 매물로 계좌 찾기
+    Optional<Account> findByCustomerAndEstate(Customer customer, Estate estate);
 
+    // 계좌 존재 여부 확인
+    boolean existsByCustomerAndEstate(Customer customer, Estate estate);
 }

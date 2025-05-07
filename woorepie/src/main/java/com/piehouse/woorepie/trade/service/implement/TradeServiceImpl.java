@@ -1,5 +1,6 @@
 package com.piehouse.woorepie.trade.service.implement;
 
+import com.piehouse.woorepie.customer.entity.Account;
 import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
@@ -37,6 +38,7 @@ public class TradeServiceImpl implements TradeService {
     @Override
     @Transactional
     public Trade saveTrade(Estate estate, Customer seller, Customer buyer, int tradeTokenAmount, int tokenPrice) {
+        // 1. 거래 내역 저장
         Trade trade = Trade.builder()
                 .estate(estate)
                 .seller(seller)
@@ -46,7 +48,37 @@ public class TradeServiceImpl implements TradeService {
                 .tradeDate(LocalDateTime.now())
                 .build();
 
-        return tradeRepository.save(trade);
+        Trade savedTrade = tradeRepository.save(trade);
+
+        // 2. 판매자 계좌 업데이트
+        Account sellerAccount = accountRepository.findByCustomerAndEstate(seller, estate)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NON_EXIST));
+
+        // 거래 금액 계산
+        int tradeAmount = tradeTokenAmount * tokenPrice;
+
+        // 판매자 계좌 업데이트 - 토큰은 감소, 금액은 증가
+        sellerAccount.updateTokenAmount(sellerAccount.getAccountTokenAmount() - tradeTokenAmount)
+                .updateTotalAmount(sellerAccount.getTotalAccountAmount() - tradeAmount);
+
+        // 3. 구매자 계좌 업데이트
+        Account buyerAccount = accountRepository.findByCustomerAndEstate(buyer, estate)
+                .orElseGet(() -> {
+                    // 새 계좌 생성 후 저장
+                    Account newAccount = Account.builder()
+                            .customer(buyer)
+                            .estate(estate)
+                            .accountTokenAmount(0)
+                            .totalAccountAmount(0)
+                            .build();
+                    return accountRepository.save(newAccount);
+                });
+
+        // 구매자 계좌 업데이트 - 토큰은 증가, 금액은 감소
+        buyerAccount.updateTokenAmount(buyerAccount.getAccountTokenAmount() + tradeTokenAmount)
+                .updateTotalAmount(buyerAccount.getTotalAccountAmount() + tradeAmount);
+
+        return savedTrade;
     }
 
     @Override
@@ -101,7 +133,7 @@ public class TradeServiceImpl implements TradeService {
 
         return buyOrders.stream()
                 .filter(Objects::nonNull)
-                .mapToInt(order -> order.getTokenAmount() * order.getTokenPrice())
+                .mapToInt(order -> order.getTradeTokenAmount() * order.getTokenPrice())
                 .sum();
     }
 
@@ -136,8 +168,8 @@ public class TradeServiceImpl implements TradeService {
         }
 
         return sellOrders.stream()
-                .filter(order -> order.getCustomerId().equals(customerId) && order.getTokenAmount() < 0)
-                .mapToInt(RedisEstateTradeValue::getTokenAmount)
+                .filter(order -> order.getCustomerId().equals(customerId) && order.getTradeTokenAmount() < 0)
+                .mapToInt(RedisEstateTradeValue::getTradeTokenAmount)
                 .sum();
     }
 }
