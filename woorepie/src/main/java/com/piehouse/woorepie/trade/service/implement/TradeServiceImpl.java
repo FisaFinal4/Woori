@@ -7,6 +7,7 @@ import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
+import com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent;
 import com.piehouse.woorepie.trade.dto.request.BuyEstateRequest;
 import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
 import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
@@ -17,6 +18,7 @@ import com.piehouse.woorepie.trade.repository.TradeRepository;
 import com.piehouse.woorepie.trade.service.TradeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,11 +36,12 @@ public class TradeServiceImpl implements TradeService {
     private final AccountRepository accountRepository;
     private final CustomerRepository customerRepository;
     private final RedisTradeRepository redisOrderRepository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override
     @Transactional
     public Trade saveTrade(Estate estate, Customer seller, Customer buyer, int tradeTokenAmount, int tokenPrice) {
-        // 1. 거래 내역 저장
+        // 1. PostgreSQL에 거래 내역 저장
         Trade trade = Trade.builder()
                 .estate(estate)
                 .seller(seller)
@@ -49,6 +52,21 @@ public class TradeServiceImpl implements TradeService {
                 .build();
 
         Trade savedTrade = tradeRepository.save(trade);
+
+        // 2. Kafka로 거래 완료 이벤트 발행
+        TransactionCreatedEvent event = TransactionCreatedEvent.builder()
+                .estateId(savedTrade.getEstate().getEstateId())
+                .tradeId(savedTrade.getTradeId())
+                .sellerId(savedTrade.getSeller().getCustomerId())
+                .buyerId(savedTrade.getBuyer().getCustomerId())
+                .tokenPrice(savedTrade.getTokenPrice())
+                .tradeTokenAmount(savedTrade.getTradeTokenAmount())
+                .tradeDate(savedTrade.getTradeDate())
+                .build();
+
+        kafkaTemplate.send("transaction.created", event);
+
+        log.info("거래 완료: estateId={}, tradeId={}", estate.getEstateId(), savedTrade.getTradeId());
 
         // 2. 판매자 계좌 업데이트
         Account sellerAccount = accountRepository.findByCustomerAndEstate(seller, estate)
