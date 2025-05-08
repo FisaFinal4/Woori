@@ -12,10 +12,15 @@ import com.piehouse.woorepie.trade.repository.RedisTradeRepository;
 import com.piehouse.woorepie.trade.service.TradeRedisService;
 import com.piehouse.woorepie.trade.service.TradeService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TradeRedisServiceImpl implements TradeRedisService {
@@ -24,6 +29,7 @@ public class TradeRedisServiceImpl implements TradeRedisService {
     private final TradeService tradeService;
     private final EstateRepository estateRepository;
     private final CustomerRepository customerRepository;
+    private final RedissonClient redissonClient;
 
     // 매물과 고객 기준 매수 주문 동시 저장
     @Override
@@ -85,14 +91,41 @@ public class TradeRedisServiceImpl implements TradeRedisService {
 
     @Override
     public void matchNewBuyOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice) {
+        // 1. 락 없이 Redis에 주문 저장
         saveBuyOrder(estateId, customerId, tokenAmount, tokenPrice);
-        matchAllPossibleOrders(estateId); // 모든 가능한 매칭 시도
+
+        // 2. 락을 사용해 매칭 로직 실행
+        processMatchingWithLock(estateId);
     }
 
     @Override
     public void matchNewSellOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice) {
+        // 1. 락 없이 Redis에 주문 저장
         saveSellOrder(estateId, customerId, tokenAmount, tokenPrice);
-        matchAllPossibleOrders(estateId); // 모든 가능한 매칭 시도
+
+        // 2. 락을 사용해 매칭 로직 실행
+        processMatchingWithLock(estateId);
+    }
+
+    private void processMatchingWithLock(Long estateId) {
+        String lockKey = "TRADE_LOCK:" + estateId;
+        RLock lock = redissonClient.getFairLock(lockKey); // FairLock 사용 (FIFO 보장)
+
+        boolean lockAcquired = false;
+        try {
+            // 500ms 동안 락 획득 시도, 10초 후 자동 해제
+            lockAcquired = lock.tryLock(500, 10_000, TimeUnit.MILLISECONDS);
+            if (lockAcquired) {
+                matchAllPossibleOrders(estateId);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("락 획득 중단: estateId={}", estateId, e);
+        } finally {
+            if (lockAcquired && lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
     }
 
     @Override

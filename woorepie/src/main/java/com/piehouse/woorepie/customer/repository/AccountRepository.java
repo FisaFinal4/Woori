@@ -2,7 +2,7 @@ package com.piehouse.woorepie.customer.repository;
 
 import com.piehouse.woorepie.customer.entity.Account;
 import com.piehouse.woorepie.customer.entity.Customer;
-import com.piehouse.woorepie.estate.entity.entity.Estate;
+import com.piehouse.woorepie.estate.entity.Estate;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
