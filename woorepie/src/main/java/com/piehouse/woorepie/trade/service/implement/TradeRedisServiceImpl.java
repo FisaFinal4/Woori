@@ -35,22 +35,22 @@ public class TradeRedisServiceImpl implements TradeRedisService {
     @Override
     public void saveBuyOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice) {
         long timestamp = System.currentTimeMillis();
-        RedisEstateTradeValue estateBuyOrder = new RedisEstateTradeValue(customerId, tokenAmount, tokenPrice, timestamp);
-        RedisCustomerTradeValue customerBuyOrder = new RedisCustomerTradeValue(estateId, tokenAmount, tokenPrice, timestamp);
+        RedisEstateTradeValue estateOrder = new RedisEstateTradeValue(customerId, tokenAmount, tokenPrice, timestamp);
+        RedisCustomerTradeValue customerOrder = new RedisCustomerTradeValue(estateId, tokenAmount, tokenPrice, timestamp);
 
-        redisRepository.saveEstateBuyOrder(estateBuyOrder, estateId);
-        redisRepository.saveCustomerBuyOrder(customerBuyOrder, customerId);
+        // Lua 스크립트로 원자적 저장
+        redisRepository.saveOrUpdateBuyOrder(estateOrder, estateId, customerOrder, customerId);
     }
 
     // 매물과 고객 기준 매도 주문 동시 저장
     @Override
     public void saveSellOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice) {
         long timestamp = System.currentTimeMillis();
-        RedisEstateTradeValue estateSellOrder = new RedisEstateTradeValue(customerId, -tokenAmount, tokenPrice, timestamp);
-        RedisCustomerTradeValue customerSellOrder = new RedisCustomerTradeValue(estateId, -tokenAmount, tokenPrice, timestamp);
+        RedisEstateTradeValue estateOrder = new RedisEstateTradeValue(customerId, -tokenAmount, tokenPrice, timestamp);
+        RedisCustomerTradeValue customerOrder = new RedisCustomerTradeValue(estateId, -tokenAmount, tokenPrice, timestamp);
 
-        redisRepository.saveEstateSellOrder(estateSellOrder, estateId);
-        redisRepository.saveCustomerSellOrder(customerSellOrder, customerId);
+        // Lua 스크립트로 원자적 저장
+        redisRepository.saveOrUpdateSellOrder(estateOrder, estateId, customerOrder, customerId);
     }
 
     // 매물 기준 매수 주문 전체 조회 (시간순)
@@ -89,24 +89,27 @@ public class TradeRedisServiceImpl implements TradeRedisService {
         return redisRepository.popOldestSellOrderFromBoth(estateId);
     }
 
+    // 매수 주문 처리
     @Override
     public void matchNewBuyOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice) {
-        // 1. 락 없이 Redis에 주문 저장
+        // Lua 스크립트로 원자적 저장
         saveBuyOrder(estateId, customerId, tokenAmount, tokenPrice);
 
-        // 2. 락을 사용해 매칭 로직 실행
+        // 락을 사용해 매칭 로직 실행
         processMatchingWithLock(estateId);
     }
 
+    // 매도 주문 처리
     @Override
     public void matchNewSellOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice) {
-        // 1. 락 없이 Redis에 주문 저장
+        // Lua 스크립트로 원자적 저장
         saveSellOrder(estateId, customerId, tokenAmount, tokenPrice);
-
-        // 2. 락을 사용해 매칭 로직 실행
+        
+        // 락을 사용해 매칭 로직 실행
         processMatchingWithLock(estateId);
     }
 
+    // 분산 락 적용해 매칭 로직
     private void processMatchingWithLock(Long estateId) {
         String lockKey = "TRADE_LOCK:" + estateId;
         RLock lock = redissonClient.getFairLock(lockKey); // FairLock 사용 (FIFO 보장)
@@ -175,9 +178,7 @@ public class TradeRedisServiceImpl implements TradeRedisService {
                     buyOrder.getTimestamp() // 원래 타임스탬프 유지
             );
 
-            redisRepository.updateBuyOrderWithOriginalTimestamp(
-                    estateId, buyOrder.getCustomerId(), updatedBuyOrder, updatedCustomerBuyOrder
-            );
+            redisRepository.saveOrUpdateBuyOrder(updatedBuyOrder, estateId, updatedCustomerBuyOrder, buyOrder.getCustomerId());
         }
 
         // 매도 주문 처리
@@ -197,9 +198,7 @@ public class TradeRedisServiceImpl implements TradeRedisService {
                     sellOrder.getTimestamp() // 원래 타임스탬프 유지
             );
 
-            redisRepository.updateSellOrderWithOriginalTimestamp(
-                    estateId, sellOrder.getCustomerId(), updatedSellOrder, updatedCustomerSellOrder
-            );
+            redisRepository.saveOrUpdateSellOrder(updatedSellOrder, estateId, updatedCustomerSellOrder, sellOrder.getCustomerId());
         }
 
         saveTradeTransaction(estateId, sellOrder.getCustomerId(), buyOrder.getCustomerId(), matchAmount, sellOrder.getTokenPrice());
@@ -231,10 +230,7 @@ public class TradeRedisServiceImpl implements TradeRedisService {
                 buyOrder.getTokenPrice(),
                 buyOrder.getTimestamp()
         );
-
-        redisRepository.updateBuyOrderWithOriginalTimestamp(
-                estateId, customerId, buyOrder, customerBuyOrder
-        );
+        redisRepository.saveOrUpdateBuyOrder(buyOrder, estateId, customerBuyOrder, customerId);
     }
 
     // pop한 매도 주문 원래 타임스탬프 유지해서 저장
@@ -248,8 +244,6 @@ public class TradeRedisServiceImpl implements TradeRedisService {
                 sellOrder.getTimestamp()
         );
 
-        redisRepository.updateSellOrderWithOriginalTimestamp(
-                estateId, customerId, sellOrder, customerSellOrder
-        );
+        redisRepository.saveOrUpdateSellOrder(sellOrder, estateId, customerSellOrder, customerId);
     }
 }

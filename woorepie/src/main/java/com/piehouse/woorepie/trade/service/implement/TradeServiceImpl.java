@@ -57,7 +57,7 @@ public class TradeServiceImpl implements TradeService {
         // 거래 금액 계산
         int tradeAmount = tradeTokenAmount * tokenPrice;
 
-        // 판매자 계좌 업데이트 - 토큰은 감소, 금액은 증가
+        // 판매자 계좌 업데이트 - 토큰과 금액 모두 감소
         sellerAccount.updateTokenAmount(sellerAccount.getAccountTokenAmount() - tradeTokenAmount)
                 .updateTotalAmount(sellerAccount.getTotalAccountAmount() - tradeAmount);
 
@@ -74,7 +74,7 @@ public class TradeServiceImpl implements TradeService {
                     return accountRepository.save(newAccount);
                 });
 
-        // 구매자 계좌 업데이트 - 토큰은 증가, 금액은 감소
+        // 구매자 계좌 업데이트 - 토큰과 금액 모두 증가
         buyerAccount.updateTokenAmount(buyerAccount.getAccountTokenAmount() + tradeTokenAmount)
                 .updateTotalAmount(buyerAccount.getTotalAccountAmount() + tradeAmount);
 
