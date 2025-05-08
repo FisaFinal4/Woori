@@ -1,16 +1,17 @@
 package com.piehouse.woorepie.customer.dto;
 
 import com.piehouse.woorepie.customer.entity.Customer;
-import lombok.Data;
+import lombok.Builder;
+import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 
-@Data
+@Getter
+@Builder
 public class SessionCustomer implements UserDetails {
 
     private final Long customerId;
@@ -22,10 +23,12 @@ public class SessionCustomer implements UserDetails {
     private final Collection<? extends GrantedAuthority> authorities;
 
     public static SessionCustomer fromCustomer(Customer customer) {
-        return new SessionCustomer(customer.getCustomerId(),
-                customer.getCustomerName(),
-                customer.getCustomerEmail(),
-                List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER")));
+        return SessionCustomer.builder()
+                .customerId(customer.getCustomerId())
+                .customerName(customer.getCustomerName())
+                .customerEmail(customer.getCustomerEmail())
+                .authorities(List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER")))
+                .build();
     }
 
     @Override
