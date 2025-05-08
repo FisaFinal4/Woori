@@ -11,9 +11,7 @@ import java.util.Collection;
 import java.util.List;
 
 @Data
-public class SessionCustomer implements UserDetails, Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class SessionCustomer implements UserDetails {
 
     private final Long customerId;
 

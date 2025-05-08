@@ -10,9 +10,7 @@ import java.time.LocalDateTime;
 @Getter
 @Builder
 @AllArgsConstructor
-public class GetCustomerResponse implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class GetCustomerResponse {
 
     String customerName;
 

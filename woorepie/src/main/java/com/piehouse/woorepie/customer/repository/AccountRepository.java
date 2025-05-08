@@ -6,6 +6,7 @@ import com.piehouse.woorepie.estate.entity.Estate;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -22,4 +23,8 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     // 계좌 존재 여부 확인
     boolean existsByCustomerAndEstate(Customer customer, Estate estate);
+    
+    // 고객으로 계좌 리스트 조회
+    List<Account> findByCustomer(Customer customer);
+
 }
