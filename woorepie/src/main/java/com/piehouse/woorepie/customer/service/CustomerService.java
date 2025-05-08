@@ -4,7 +4,6 @@ import com.piehouse.woorepie.customer.dto.SessionCustomer;
 import com.piehouse.woorepie.customer.dto.request.CreateCustomerRequest;
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerResponse;
-import com.piehouse.woorepie.customer.entity.Customer;
 import jakarta.servlet.http.HttpServletRequest;
 
 public interface CustomerService {
