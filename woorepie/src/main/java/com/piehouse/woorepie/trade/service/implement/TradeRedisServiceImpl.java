@@ -110,7 +110,7 @@ public class TradeRedisServiceImpl implements TradeRedisService {
     }
 
     // 분산 락 적용해 매칭 로직
-    private void processMatchingWithLock(Long estateId) {
+    void processMatchingWithLock(Long estateId) {
         String lockKey = "TRADE_LOCK:" + estateId;
         RLock lock = redissonClient.getFairLock(lockKey); // FairLock 사용 (FIFO 보장)
 
