@@ -12,12 +12,14 @@ import com.piehouse.woorepie.trade.repository.RedisTradeRepository;
 import com.piehouse.woorepie.trade.service.TradeRedisService;
 import com.piehouse.woorepie.trade.service.TradeService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
 import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Log4j2
 public class TradeRedisServiceImpl implements TradeRedisService {
 
     private final RedisTradeRepository redisRepository;
@@ -45,6 +47,9 @@ public class TradeRedisServiceImpl implements TradeRedisService {
 
         redisRepository.saveEstateSellOrder(estateSellOrder, estateId);
         redisRepository.saveCustomerSellOrder(customerSellOrder, customerId);
+
+        log.info("[Redis 매도 저장] estateId={}, customerId={}, amount={}, price={}, ts={}",
+                estateId, customerId, -tokenAmount, tokenPrice, timestamp);
     }
 
     // 매물 기준 매수 주문 전체 조회 (시간순)
