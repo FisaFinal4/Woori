@@ -12,6 +12,9 @@ import com.piehouse.woorepie.customer.service.CustomerService;
 import com.piehouse.woorepie.estate.service.impliment.EstateServiceImpl;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
+import com.piehouse.woorepie.global.kafka.dto.CustomerCreatedEvent;
+import com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent;
+import com.piehouse.woorepie.global.kafka.service.KafkaProducerService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +41,7 @@ public class CustomerServiceImpl implements CustomerService {
     private final SecureRandom secureRandom = new SecureRandom();
     private static final int ACCOUNT_NUMBER_LENGTH = 15;
     private final EstateServiceImpl estateServiceImpl;
+    private final KafkaProducerService kafkaProducerService;
 
     @Override
     public void customerLogin(LoginCustomerRequest customerRequest, HttpServletRequest request) {
@@ -102,6 +106,9 @@ public class CustomerServiceImpl implements CustomerService {
                     .customerIdentificationUrl(customerRequest.getCustomerIdentificationUrl())
                     .build();
             customerRepository.save(customer);
+
+            CustomerCreatedEvent event = CustomerCreatedEvent.fromCustomer(customer);
+            kafkaProducerService.sendCustomerCreated(event);
         } catch (Exception e) {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
