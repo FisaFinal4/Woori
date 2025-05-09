@@ -1,5 +1,6 @@
 package com.piehouse.woorepie.trade.service;
 
+import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
 import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
 import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
 
@@ -31,10 +32,10 @@ public interface TradeRedisService {
     RedisEstateTradeValue popOldestSellOrderFromBoth(Long estateId);
 
     // 새 매수 주문이 들어왔을 때 호출
-    void matchNewBuyOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice);
+    void matchNewBuyOrder(OrderCreatedEvent event);
 
     // 새 매도 주문이 들어왔을 때 호출
-    void matchNewSellOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice);
+    void matchNewSellOrder(OrderCreatedEvent event);
 
     // 반복 매칭 메소드
     void matchAllPossibleOrders(Long estateId);

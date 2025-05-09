@@ -73,28 +73,4 @@ public class TradeRedisController { // Redis 동작 테스트용 Controller
         RedisEstateTradeValue order = tradeRedisService.popOldestSellOrderFromBoth(estateId);
         return ApiResponseUtil.success(order, request);
     }
-
-    // 매수 주문 매칭 테스트용
-    @PostMapping("/buy/match")
-    public ResponseEntity<String> matchNewBuyOrder(@RequestBody RedisCustomerTradeValue request, @RequestHeader("customerId") Long customerId, HttpServletRequest httpRequest) {
-        tradeRedisService.matchNewBuyOrder(
-                request.getEstateId(),
-                customerId,
-                request.getTradeTokenAmount(),
-                request.getTokenPrice()
-        );
-        return ResponseEntity.ok("매수 매칭 처리 완료");
-    }
-
-    // 매도 주문 매칭 테스트용
-    @PostMapping("/sell/match")
-    public ResponseEntity<String> matchNewSellOrder(@RequestBody RedisCustomerTradeValue request, @RequestHeader("customerId") Long customerId, HttpServletRequest httpRequest) {
-        tradeRedisService.matchNewSellOrder(
-                request.getEstateId(),
-                customerId,
-                request.getTradeTokenAmount(),
-                request.getTokenPrice()
-        );
-        return ResponseEntity.ok("매도 매칭 처리 완료");
-    }
 }
