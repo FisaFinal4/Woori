@@ -5,6 +5,8 @@ import com.piehouse.woorepie.estate.repository.EstateRepository;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.notice.dto.request.CreateNoticeRequest;
+import com.piehouse.woorepie.notice.dto.request.ModifyNoticeRequest;
+import com.piehouse.woorepie.notice.dto.response.GetNoticeDetailsResponse;
 import com.piehouse.woorepie.notice.dto.response.GetNoticeSimpleResponse;
 import com.piehouse.woorepie.notice.entity.Notice;
 import com.piehouse.woorepie.notice.repository.NoticeRepository;
@@ -54,6 +56,35 @@ public class NoticeService {
                 ))
                 .collect(Collectors.toList());
     }
+
+    // 공시 상세 조회
+    public GetNoticeDetailsResponse getNoticeDetails(Long noticeId) {
+        Notice notice = noticeRepository.findById(noticeId)
+                .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        return new GetNoticeDetailsResponse(
+                notice.getNoticeId(),
+                notice.getEstate().getEstateId(),
+                notice.getEstate().getEstateName(),
+                notice.getNoticeTitle(),
+                notice.getNoticeContent(),
+                notice.getNoticeFileUrl(),
+                notice.getNoticeDate()
+        );
+    }
+    @Transactional
+    public void modifyNotice(Long noticeId, ModifyNoticeRequest request) {
+        Notice notice = noticeRepository.findById(noticeId)
+                .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        notice.updateNotice(
+                request.getNoticeTitle(),
+                request.getNoticeContent(),
+                request.getNoticeFileUrl()
+        );
+    }
+
+    // 공시 수정
 
 
 }
