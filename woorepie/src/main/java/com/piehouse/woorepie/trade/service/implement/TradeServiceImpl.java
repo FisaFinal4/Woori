@@ -10,6 +10,7 @@ import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent;
 import com.piehouse.woorepie.global.kafka.request.dto.KafkaProducerDto;
 import com.piehouse.woorepie.global.kafka.service.KafkaProducerService;
+import com.piehouse.woorepie.global.util.KafkaRetryUtil;
 import com.piehouse.woorepie.trade.dto.request.BuyEstateRequest;
 import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
 import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
@@ -40,6 +41,7 @@ public class TradeServiceImpl implements TradeService {
     private final RedisTradeRepository redisOrderRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final KafkaProducerService kafkaProducerService;
+    private final KafkaRetryUtil kafkaRetryUtil;
 
     @Override
     @Transactional
@@ -56,22 +58,19 @@ public class TradeServiceImpl implements TradeService {
 
         Trade savedTrade = tradeRepository.save(trade);
 
-        // 2. Kafka로 거래 완료 이벤트 발행
-        TransactionCreatedEvent event = TransactionCreatedEvent.builder()
-                .estateId(savedTrade.getEstate().getEstateId())
-                .tradeId(savedTrade.getTradeId())
-                .sellerId(savedTrade.getSeller().getCustomerId())
-                .buyerId(savedTrade.getBuyer().getCustomerId())
-                .tokenPrice(savedTrade.getTokenPrice())
-                .tradeTokenAmount(savedTrade.getTradeTokenAmount())
-                .tradeDate(savedTrade.getTradeDate())
-                .build();
+        // 2. Kafka로 거래 체결 이벤트 비동기 전송
+        TransactionCreatedEvent event = createEvent(savedTrade);
 
-        kafkaTemplate.send("transaction.created", event);
+        kafkaTemplate.send("transaction.created", event)
+                .whenComplete((result, ex) -> {
+                    if (ex == null) {
+                        log.info("Kafka 전송 성공: tradeId={}", trade.getTradeId());
+                    } else {
+                        kafkaRetryUtil.sendWithRetry("transaction.created", event, 3);
+                    }
+                });
 
-        log.info("거래 완료: estateId={}, tradeId={}", estate.getEstateId(), savedTrade.getTradeId());
-
-        // 2. 판매자 계좌 업데이트
+        // 3. 판매자 계좌 업데이트
         Account sellerAccount = accountRepository.findByCustomerAndEstate(seller, estate)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NON_EXIST));
 
@@ -82,7 +81,7 @@ public class TradeServiceImpl implements TradeService {
         sellerAccount.updateTokenAmount(sellerAccount.getAccountTokenAmount() - tradeTokenAmount)
                 .updateTotalAmount(sellerAccount.getTotalAccountAmount() - tradeAmount);
 
-        // 3. 구매자 계좌 업데이트
+        // 4. 구매자 계좌 업데이트
         Account buyerAccount = accountRepository.findByCustomerAndEstate(buyer, estate)
                 .orElseGet(() -> {
                     // 새 계좌 생성 후 저장
@@ -100,6 +99,18 @@ public class TradeServiceImpl implements TradeService {
                 .updateTotalAmount(buyerAccount.getTotalAccountAmount() + tradeAmount);
 
         return savedTrade;
+    }
+
+    private TransactionCreatedEvent createEvent(Trade trade) {
+        return TransactionCreatedEvent.builder()
+                .estateId(trade.getEstate().getEstateId())
+                .tradeId(trade.getTradeId())
+                .sellerId(trade.getSeller().getCustomerId())
+                .buyerId(trade.getBuyer().getCustomerId())
+                .tokenPrice(trade.getTokenPrice())
+                .tradeTokenAmount(trade.getTradeTokenAmount())
+                .tradeDate(trade.getTradeDate())
+                .build();
     }
 
     @Override
