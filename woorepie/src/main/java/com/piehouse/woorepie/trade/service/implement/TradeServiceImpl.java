@@ -8,9 +8,8 @@ import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent;
-import com.piehouse.woorepie.global.kafka.request.dto.KafkaProducerDto;
+import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
 import com.piehouse.woorepie.global.kafka.service.KafkaProducerService;
-import com.piehouse.woorepie.global.util.KafkaRetryUtil;
 import com.piehouse.woorepie.trade.dto.request.BuyEstateRequest;
 import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
 import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
@@ -39,9 +38,7 @@ public class TradeServiceImpl implements TradeService {
     private final AccountRepository accountRepository;
     private final CustomerRepository customerRepository;
     private final RedisTradeRepository redisOrderRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
     private final KafkaProducerService kafkaProducerService;
-    private final KafkaRetryUtil kafkaRetryUtil;
 
     @Override
     @Transactional
@@ -60,15 +57,7 @@ public class TradeServiceImpl implements TradeService {
 
         // 2. Kafka로 거래 체결 이벤트 비동기 전송
         TransactionCreatedEvent event = createEvent(savedTrade);
-
-        kafkaTemplate.send("transaction.created", event)
-                .whenComplete((result, ex) -> {
-                    if (ex == null) {
-                        log.info("Kafka 전송 성공: tradeId={}", trade.getTradeId());
-                    } else {
-                        kafkaRetryUtil.sendWithRetry("transaction.created", event, 3);
-                    }
-                });
+        kafkaProducerService.sendTransactionCreated(event);
 
         // 3. 판매자 계좌 업데이트
         Account sellerAccount = accountRepository.findByCustomerAndEstate(seller, estate)
@@ -136,13 +125,13 @@ public class TradeServiceImpl implements TradeService {
             throw new CustomException(ErrorCode.INSUFFICIENT_CASH);
         }
 
-        KafkaProducerDto msg = KafkaProducerDto.builder()
+        OrderCreatedEvent msg = OrderCreatedEvent.builder()
                 .estateId(request.getEstateId())
                 .customerId(customerId)
                 .tokenPrice(price)
                 .tradeTokenAmount(amount)
                 .build();
-        kafkaProducerService.sendOrder(msg);
+        kafkaProducerService.sendOrderCreated(msg);
         log.info("[매수 Kafka 전송 완료] 고객: {}, 수량: {}, 가격: {}", customerId, amount, price);
     }
 
@@ -181,13 +170,13 @@ public class TradeServiceImpl implements TradeService {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
 
-        KafkaProducerDto msg = KafkaProducerDto.builder()
+        OrderCreatedEvent msg = OrderCreatedEvent.builder()
                 .estateId(estateId)
                 .customerId(customerId)
                 .tokenPrice(request.getTokenPrice())
                 .tradeTokenAmount(sellAmt)
                 .build();
-        kafkaProducerService.sendOrder(msg);
+        kafkaProducerService.sendOrderCreated(msg);
         log.info("[매도 Kafka 전송 완료] 고객: {}, 부동산: {}, 수량: {}", customerId, estateId, sellAmt);
     }
 

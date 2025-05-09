@@ -1,5 +1,6 @@
 package com.piehouse.woorepie.global.kafka.config;
 
+import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,7 +39,8 @@ public class KafkaConsumerConfig {
 
         // JSON 역직렬화 대상 클래스 및 패키지 신뢰 설정
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.piehouse.woorepie.global.kafka.dto");
-        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent");
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "order-group"); // Consumer 그룹 ID
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, OrderCreatedEvent.class.getName()); // 기본 DTO 타입
 
         return new DefaultKafkaConsumerFactory<>(props);
     }
