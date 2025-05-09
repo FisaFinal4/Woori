@@ -1,5 +1,6 @@
 package com.piehouse.woorepie.global.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
 import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
 import org.springframework.context.annotation.Bean;
@@ -12,17 +13,24 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @Configuration
 public class RedisConfig {
     @Bean
+    public RedisTemplate<String, String> redisStringTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new StringRedisSerializer()); // Lua 결과를 String으로 받기 위함
+        return template;
+    }
+
+    @Bean
     public RedisTemplate<String, RedisEstateTradeValue> redisEstateTradeTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, RedisEstateTradeValue> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
-
-        // 직렬화 설정
         template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
 
-        // Redis 트랜잭션 지원 활성화
-        template.setEnableTransactionSupport(true);
-
+        // @class 필드 없이 직렬화
+        ObjectMapper objectMapper = new ObjectMapper();
+        template.setValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper));
         return template;
     }
 
@@ -30,14 +38,12 @@ public class RedisConfig {
     public RedisTemplate<String, RedisCustomerTradeValue> redisCustomerTradeTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, RedisCustomerTradeValue> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
-      
-        // 직렬화 설정
         template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
 
-        // Redis 트랜잭션 지원 활성화
-        template.setEnableTransactionSupport(true);
-
+        // @class 필드 없이 직렬화
+        ObjectMapper objectMapper = new ObjectMapper();
+        template.setValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper));
         return template;
     }
 }
+
