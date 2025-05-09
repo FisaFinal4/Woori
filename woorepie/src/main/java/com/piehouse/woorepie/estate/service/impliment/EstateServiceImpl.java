@@ -20,7 +20,7 @@ public class EstateServiceImpl implements EstateService {
     private final RedisTemplate<String, Object> redisObjectTemplate;
     private final EstateRepository estateRepository;
     private final EstatePriceRepository estatePriceRepository;
-    private final String REDIS_ESTATE_PRICE_KEY_PREFIX = "estate:price:";
+    private static final String REDIS_ESTATE_PRICE_KEY_PREFIX = "estate:price:";
 
     // 매물 시세 redis 저장
     public RedisEstatePrice getRedisEstatePrice(Long estateId) {

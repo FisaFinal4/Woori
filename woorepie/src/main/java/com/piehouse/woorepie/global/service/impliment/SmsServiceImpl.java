@@ -31,7 +31,7 @@ public class SmsServiceImpl implements SmsService {
     @Value("${coolsms.apisecret}")
     private String apiSecret;
 
-    private final String REDIS_SMS_AUTH_KEY_PREFIX = "sms:auth:";
+    private static final String REDIS_SMS_AUTH_KEY_PREFIX = "sms:auth:";
     private final RedisTemplate<String, String> redisStringTemplate;
     private DefaultMessageService messageService;
     private final SecureRandom secureRandom = new SecureRandom();
