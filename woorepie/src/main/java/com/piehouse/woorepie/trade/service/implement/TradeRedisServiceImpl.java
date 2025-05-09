@@ -6,6 +6,7 @@ import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.estate.repository.EstateRepository;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
+import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
 import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
 import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
 import com.piehouse.woorepie.trade.repository.RedisTradeRepository;
@@ -91,22 +92,22 @@ public class TradeRedisServiceImpl implements TradeRedisService {
 
     // 매수 주문 처리
     @Override
-    public void matchNewBuyOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice) {
+    public void matchNewBuyOrder(OrderCreatedEvent event) {
         // Lua 스크립트로 원자적 저장
-        saveBuyOrder(estateId, customerId, tokenAmount, tokenPrice);
+        saveBuyOrder(event.getEstateId(), event.getCustomerId(), event.getTradeTokenAmount(), event.getTokenPrice());
 
         // 락을 사용해 매칭 로직 실행
-        processMatchingWithLock(estateId);
+        processMatchingWithLock(event.getEstateId());
     }
 
     // 매도 주문 처리
     @Override
-    public void matchNewSellOrder(Long estateId, Long customerId, int tokenAmount, int tokenPrice) {
+    public void matchNewSellOrder(OrderCreatedEvent event) {
         // Lua 스크립트로 원자적 저장
-        saveSellOrder(estateId, customerId, tokenAmount, tokenPrice);
+        saveSellOrder(event.getEstateId(), event.getCustomerId(), -event.getTradeTokenAmount(), event.getTokenPrice());
         
         // 락을 사용해 매칭 로직 실행
-        processMatchingWithLock(estateId);
+        processMatchingWithLock(event.getEstateId());
     }
 
     // 분산 락 적용해 매칭 로직
