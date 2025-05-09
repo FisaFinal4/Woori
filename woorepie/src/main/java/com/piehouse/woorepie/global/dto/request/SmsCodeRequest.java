@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 
 @Getter
-public class SmsAuthRequest {
+public class SmsCodeRequest {
 
     @NotBlank
     private String phoneNumber;

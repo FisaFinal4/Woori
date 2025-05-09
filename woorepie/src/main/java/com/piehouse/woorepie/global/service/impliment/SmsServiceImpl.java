@@ -1,6 +1,7 @@
 package com.piehouse.woorepie.global.service.impliment;
 
-import com.piehouse.woorepie.global.dto.request.SmsAuthRequest;
+import com.piehouse.woorepie.global.dto.request.SmsCodeRequest;
+import com.piehouse.woorepie.global.dto.request.SmsVerifyRequest;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.global.service.SmsService;
@@ -13,6 +14,7 @@ import net.nurigo.sdk.message.response.SingleMessageSentResponse;
 import net.nurigo.sdk.message.service.DefaultMessageService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -44,15 +46,15 @@ public class SmsServiceImpl implements SmsService {
 
 
     @Override
-    public void createSmsAuth(SmsAuthRequest smsAuthRequest) {
+    public void createSmsAuth(SmsCodeRequest smsCodeRequest) {
         try {
             String code = String.valueOf(secureRandom.nextInt(900_000) + 100_000);
 
             // 인증번호 redis에 저장
-            redisSmsCode(smsAuthRequest.getPhoneNumber(), code);
+            redisSmsCode(smsCodeRequest.getPhoneNumber(), code);
 
             // 문자 전송
-            sendSms(smsAuthRequest.getPhoneNumber(), code);
+            sendSms(smsCodeRequest.getPhoneNumber(), code);
         } catch (Exception e) {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
@@ -82,10 +84,40 @@ public class SmsServiceImpl implements SmsService {
     public void redisSmsCode(String phoneNumber, String code) {
         try {
             String key = REDIS_SMS_AUTH_KEY_PREFIX + phoneNumber;
-            redisStringTemplate.opsForValue().set(key, code, Duration.ofMinutes(3));
+            redisStringTemplate.opsForValue().set(key, code, Duration.ofMinutes(30));
         }catch (Exception e) {
             System.out.println(e.getMessage());
         }
+    }
+
+    @Override
+    public Boolean isSmsCodeValid(SmsVerifyRequest smsVerifyRequest) {
+        try {
+            String key = REDIS_SMS_AUTH_KEY_PREFIX + smsVerifyRequest.getPhoneNumber();
+            ValueOperations<String, String> ops = redisStringTemplate.opsForValue();
+
+            // Redis에서 꺼내기
+            String cached = ops.get(key);
+
+            System.out.println(cached);
+            // 없거나 만료
+            if (cached == null) {
+                throw new CustomException(ErrorCode.SMS_CODE_EXPIRED);
+            }
+
+            // 일치
+            if (!cached.equals(smsVerifyRequest.getCode())) {
+                throw new CustomException(ErrorCode.SMS_CODE_INVALID);
+            }
+
+            redisStringTemplate.delete(key);
+            return true;
+        } catch (CustomException ce) {
+            throw ce;
+        }catch (Exception e) {
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
+        }
+
     }
 
 }

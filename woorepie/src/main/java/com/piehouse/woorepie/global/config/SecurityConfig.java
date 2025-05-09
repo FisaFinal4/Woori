@@ -21,7 +21,7 @@ public class SecurityConfig {
                         .maxSessionsPreventsLogin(false)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/customer/login", "/customer/create", "/customer/sms/create").permitAll()
+                        .requestMatchers("/customer/login", "/customer/create", "/sms/**").permitAll()
 //                        .requestMatchers("**").permitAll()
                         .anyRequest().authenticated()
                 )
