@@ -1,20 +1,25 @@
 package com.piehouse.woorepie.trade.repository;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
 import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Set;
 
 @Repository
 @RequiredArgsConstructor
 public class RedisTradeRepository {
-
-    private final RedisTemplate<String, RedisEstateTradeValue> redisEstateTradeTemplate;
-    private final RedisTemplate<String, RedisCustomerTradeValue> redisCustomerTradeTemplate;
+    private final RedisTemplate<String, String> redisStringTemplate; // Lua 실행용
+    private final RedisTemplate<String, RedisEstateTradeValue> redisEstateTradeTemplate; // 일반 CRUD용
+    private final RedisTemplate<String, RedisCustomerTradeValue> redisCustomerTradeTemplate; // 일반 CRUD용
+    private final ObjectMapper objectMapper;
 
     // 키 패턴 상수
     private static final String ESTATE_BUY_KEY = "estate:%d:buy";
@@ -22,28 +27,50 @@ public class RedisTradeRepository {
     private static final String CUSTOMER_BUY_KEY = "customer:%d:buy";
     private static final String CUSTOMER_SELL_KEY = "customer:%d:sell";
 
-    // 매물 기준 매수 주문 저장
-    public void saveEstateBuyOrder(RedisEstateTradeValue order, Long estateId) {
-        String key = String.format(ESTATE_BUY_KEY, estateId);
-        redisEstateTradeTemplate.opsForZSet().add(key, order, order.getTimestamp());
+    // Lua 스크립트 로드
+    // 주문 저장
+    private final DefaultRedisScript<Long> saveScript = new DefaultRedisScript<>() {{
+        setLocation(new ClassPathResource("scripts/save_order.lua"));
+        setResultType(Long.class);
+    }};
+
+    // 가장 먼저 들어온 주문 꺼냄
+    private final DefaultRedisScript<String> popScript = new DefaultRedisScript<>() {{
+        setLocation(new ClassPathResource("scripts/pop_order.lua"));
+        setResultType(String.class);
+    }};
+
+    // 매수 주문 저장 및 부분 체결 업데이트
+    public void saveOrUpdateBuyOrder(RedisEstateTradeValue estateOrder, Long estateId,
+                                     RedisCustomerTradeValue customerOrder, Long customerId) {
+        String estateKey = String.format(ESTATE_BUY_KEY, estateId);
+        String customerKey = String.format(CUSTOMER_BUY_KEY, customerId);
+        executeSaveScript(estateKey, customerKey, estateOrder, customerOrder);
     }
 
-    // 매물 기준 매도 주문 저장
-    public void saveEstateSellOrder(RedisEstateTradeValue order, Long estateId) {
-        String key = String.format(ESTATE_SELL_KEY, estateId);
-        redisEstateTradeTemplate.opsForZSet().add(key, order, order.getTimestamp());
+    // 매도 주문 저장 및 부분 체결 업데이트
+    public void saveOrUpdateSellOrder(RedisEstateTradeValue estateOrder, Long estateId,
+                                      RedisCustomerTradeValue customerOrder, Long customerId) {
+        String estateKey = String.format(ESTATE_SELL_KEY, estateId);
+        String customerKey = String.format(CUSTOMER_SELL_KEY, customerId);
+        executeSaveScript(estateKey, customerKey, estateOrder, customerOrder);
     }
 
-    // 고객 기준 매수 주문 저장
-    public void saveCustomerBuyOrder(RedisCustomerTradeValue order, Long customerId) {
-        String key = String.format(CUSTOMER_BUY_KEY, customerId);
-        redisCustomerTradeTemplate.opsForZSet().add(key, order, order.getTimestamp());
-    }
-
-    // 고객 기준 매도 주문 저장
-    public void saveCustomerSellOrder(RedisCustomerTradeValue order, Long customerId) {
-        String key = String.format(CUSTOMER_SELL_KEY, customerId);
-        redisCustomerTradeTemplate.opsForZSet().add(key, order, order.getTimestamp());
+    // 주문 저장 (Lua 스크립트 사용)
+    private void executeSaveScript(String estateKey, String customerKey,
+                                   RedisEstateTradeValue estateOrder,
+                                   RedisCustomerTradeValue customerOrder) {
+        try {
+            String estateJson = objectMapper.writeValueAsString(estateOrder);
+            String customerJson = objectMapper.writeValueAsString(customerOrder);
+            redisStringTemplate.execute(
+                    saveScript,
+                    List.of(estateKey, customerKey),
+                    estateJson, customerJson, String.valueOf(estateOrder.getTimestamp())
+            );
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("직렬화 실패", e);
+        }
     }
 
     // 매물별 매수 주문 조회 (시간순)
@@ -70,73 +97,39 @@ public class RedisTradeRepository {
         return redisCustomerTradeTemplate.opsForZSet().rangeByScore(key, 0, Double.MAX_VALUE);
     }
 
-    // 매물 기준 가장 먼저 들어온 매수 주문 꺼내기 + 고객 기준에서도 함께 삭제
+    // 매수 주문 Pop (Lua 스크립트 사용)
     public RedisEstateTradeValue popOldestBuyOrderFromBoth(Long estateId) {
-        // 1. 매물 기준에서 가장 먼저 들어온 매수 주문 꺼내기 (자동 삭제됨)
         String estateKey = String.format(ESTATE_BUY_KEY, estateId);
-        Set<ZSetOperations.TypedTuple<RedisEstateTradeValue>> popped =
-                redisEstateTradeTemplate.opsForZSet().popMin(estateKey, 1);
+        String customerKeyPattern = CUSTOMER_BUY_KEY.replace("%d", "%s");
 
-        if (popped.isEmpty()) {
-            return null;
-        }
+        String result = redisStringTemplate.execute(
+                popScript,
+                List.of(estateKey, customerKeyPattern)
+        );
 
-        // 2. 꺼낸 주문 정보 확인
-        RedisEstateTradeValue estateBuyOrder = popped.iterator().next().getValue();
-        Long customerId = estateBuyOrder.getCustomerId();
-        long timestamp = estateBuyOrder.getTimestamp();
-
-        // 3. 고객 기준에서 같은 타임스탬프를 가진 주문 삭제
-        String customerKey = String.format(CUSTOMER_BUY_KEY, customerId);
-        redisCustomerTradeTemplate.opsForZSet().removeRangeByScore(customerKey, timestamp, timestamp);
-
-        return estateBuyOrder;
+        return deserializeOrder(result);
     }
 
-    // 매물 기준 가장 먼저 들어온 매도 주문 꺼내기 + 고객 기준에서도 함께 삭제
+    // 매도 주문 Pop (Lua 스크립트 사용)
     public RedisEstateTradeValue popOldestSellOrderFromBoth(Long estateId) {
-        // 매수와 동일한 로직, 키만 sell로 변경
         String estateKey = String.format(ESTATE_SELL_KEY, estateId);
-        Set<ZSetOperations.TypedTuple<RedisEstateTradeValue>> popped =
-                redisEstateTradeTemplate.opsForZSet().popMin(estateKey, 1);
+        String customerKeyPattern = CUSTOMER_SELL_KEY.replace("%d", "%s");
 
-        if (popped.isEmpty()) {
-            return null;
+        String result = redisStringTemplate.execute(
+                popScript,
+                List.of(estateKey, customerKeyPattern)
+        );
+
+        return deserializeOrder(result);
+    }
+
+    // JSON 역직렬화
+    private RedisEstateTradeValue deserializeOrder(String json) {
+        if (json == null) return null;
+        try {
+            return new ObjectMapper().readValue(json, RedisEstateTradeValue.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to deserialize order", e);
         }
-
-        RedisEstateTradeValue estateSellOrder = popped.iterator().next().getValue();
-        Long customerId = estateSellOrder.getCustomerId();
-        long timestamp = estateSellOrder.getTimestamp();
-
-        String customerKey = String.format(CUSTOMER_SELL_KEY, customerId);
-        redisCustomerTradeTemplate.opsForZSet().removeRangeByScore(customerKey, timestamp, timestamp);
-
-        return estateSellOrder;
-    }
-
-    // 부분 체결된 매도 주문 업데이트 (원래 타임스탬프 유지)
-    public void updateSellOrderWithOriginalTimestamp(Long estateId, Long customerId,
-                                                     RedisEstateTradeValue estateSellOrder,
-                                                     RedisCustomerTradeValue customerSellOrder) {
-        // 매물 기준 매도 주문 업데이트
-        String estateKey = String.format(ESTATE_SELL_KEY, estateId);
-        redisEstateTradeTemplate.opsForZSet().add(estateKey, estateSellOrder, estateSellOrder.getTimestamp());
-
-        // 고객 기준 매도 주문 업데이트
-        String customerKey = String.format(CUSTOMER_SELL_KEY, customerId);
-        redisCustomerTradeTemplate.opsForZSet().add(customerKey, customerSellOrder, customerSellOrder.getTimestamp());
-    }
-
-    // 부분 체결된 매수 주문 업데이트 (원래 타임스탬프 유지)
-    public void updateBuyOrderWithOriginalTimestamp(Long estateId, Long customerId,
-                                                    RedisEstateTradeValue estateBuyOrder,
-                                                    RedisCustomerTradeValue customerBuyOrder) {
-        // 매물 기준 매수 주문 업데이트
-        String estateKey = String.format(ESTATE_BUY_KEY, estateId);
-        redisEstateTradeTemplate.opsForZSet().add(estateKey, estateBuyOrder, estateBuyOrder.getTimestamp());
-
-        // 고객 기준 매수 주문 업데이트
-        String customerKey = String.format(CUSTOMER_BUY_KEY, customerId);
-        redisCustomerTradeTemplate.opsForZSet().add(customerKey, customerBuyOrder, customerBuyOrder.getTimestamp());
     }
 }

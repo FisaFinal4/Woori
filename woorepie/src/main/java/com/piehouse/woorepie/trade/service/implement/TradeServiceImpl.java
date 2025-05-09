@@ -55,18 +55,24 @@ public class TradeServiceImpl implements TradeService {
         Account sellerAccount = accountRepository.findByCustomerAndEstate(seller, estate)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NON_EXIST));
         int tradeAmount = tradeTokenAmount * tokenPrice;
+      
+        // 판매자 계좌 업데이트 - 토큰과 금액 모두 감소
         sellerAccount.updateTokenAmount(sellerAccount.getAccountTokenAmount() - tradeTokenAmount)
                 .updateTotalAmount(sellerAccount.getTotalAccountAmount() - tradeAmount);
 
         Account buyerAccount = accountRepository.findByCustomerAndEstate(buyer, estate)
-                .orElseGet(() -> accountRepository.save(
-                        Account.builder()
-                                .customer(buyer)
-                                .estate(estate)
-                                .accountTokenAmount(0)
-                                .totalAccountAmount(0)
-                                .build()
-                ));
+                .orElseGet(() -> {
+                    // 새 계좌 생성 후 저장
+                    Account newAccount = Account.builder()
+                            .customer(buyer)
+                            .estate(estate)
+                            .accountTokenAmount(0)
+                            .totalAccountAmount(0)
+                            .build();
+                    return accountRepository.save(newAccount);
+                });
+
+        // 구매자 계좌 업데이트 - 토큰과 금액 모두 증가
         buyerAccount.updateTokenAmount(buyerAccount.getAccountTokenAmount() + tradeTokenAmount)
                 .updateTotalAmount(buyerAccount.getTotalAccountAmount() + tradeAmount);
 
