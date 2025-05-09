@@ -9,8 +9,6 @@ import jakarta.servlet.http.HttpServletRequest;
 
 public interface CustomerService {
 
-    void createSmsAuth(SmsAuthRequest smsAuthRequest);
-
     void customerLogin(LoginCustomerRequest customerRequest, HttpServletRequest request);
 
     void customerLogout(HttpServletRequest request);
