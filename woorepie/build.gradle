@@ -24,21 +24,41 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // REST API
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    // DTO 유효성 검사
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'org.springframework.session:spring-session-data-redis'
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-    implementation 'org.springframework.kafka:spring-kafka'
-    implementation 'software.amazon.awssdk:s3:2.20.30'
-    compileOnly 'org.projectlombok:lombok'
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    // jpa
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    // PostgreSQL 드라이버
     runtimeOnly 'org.postgresql:postgresql'
-    annotationProcessor 'org.projectlombok:lombok'
+
+    // Spring Security: 인증·인가
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // redis
+    implementation 'org.springframework.session:spring-session-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.redisson:redisson-spring-boot-starter:3.27.0'
 
+    // kafka
+    implementation 'org.springframework.kafka:spring-kafka'
+
+    // AWS S3
+    implementation 'software.amazon.awssdk:s3:2.20.30'
+
+    // coolsms
+    implementation 'net.nurigo:sdk:4.2.7'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    // 코드 변경 시 자동 재시작
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    // TEST
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

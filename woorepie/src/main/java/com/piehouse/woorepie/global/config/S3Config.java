@@ -11,11 +11,11 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 @Configuration
 public class S3Config {
 
-    private String region;
+    final private String region;
 
-    private String accessKey;
+    final private String accessKey;
 
-    private String secretKey;
+    final private String secretKey;
 
     public S3Config(
             @Value("${aws.region}") String region,

@@ -7,7 +7,8 @@ import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
-import com.piehouse.woorepie.global.kafka.request.dto.KafkaProducerDto;
+import com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent;
+import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
 import com.piehouse.woorepie.global.kafka.service.KafkaProducerService;
 import com.piehouse.woorepie.trade.dto.request.BuyEstateRequest;
 import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
@@ -41,6 +42,7 @@ public class TradeServiceImpl implements TradeService {
     @Override
     @Transactional
     public Trade saveTrade(Estate estate, Customer seller, Customer buyer, int tradeTokenAmount, int tokenPrice) {
+        // 1. PostgreSQL에 거래 내역 저장
         Trade trade = Trade.builder()
                 .estate(estate)
                 .seller(seller)
@@ -50,16 +52,24 @@ public class TradeServiceImpl implements TradeService {
                 .tradeDate(LocalDateTime.now())
                 .build();
 
-        Trade saved = tradeRepository.save(trade);
+        Trade savedTrade = tradeRepository.save(trade);
 
+        // 2. Kafka로 거래 체결 이벤트 비동기 전송
+        TransactionCreatedEvent event = createEvent(savedTrade);
+        kafkaProducerService.sendTransactionCreated(event);
+
+        // 3. 판매자 계좌 업데이트
         Account sellerAccount = accountRepository.findByCustomerAndEstate(seller, estate)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NON_EXIST));
+
+        // 거래 금액 계산
         int tradeAmount = tradeTokenAmount * tokenPrice;
-      
+
         // 판매자 계좌 업데이트 - 토큰과 금액 모두 감소
         sellerAccount.updateTokenAmount(sellerAccount.getAccountTokenAmount() - tradeTokenAmount)
                 .updateTotalAmount(sellerAccount.getTotalAccountAmount() - tradeAmount);
 
+        // 4. 구매자 계좌 업데이트
         Account buyerAccount = accountRepository.findByCustomerAndEstate(buyer, estate)
                 .orElseGet(() -> {
                     // 새 계좌 생성 후 저장
@@ -76,7 +86,19 @@ public class TradeServiceImpl implements TradeService {
         buyerAccount.updateTokenAmount(buyerAccount.getAccountTokenAmount() + tradeTokenAmount)
                 .updateTotalAmount(buyerAccount.getTotalAccountAmount() + tradeAmount);
 
-        return saved;
+        return savedTrade;
+    }
+
+    private TransactionCreatedEvent createEvent(Trade trade) {
+        return TransactionCreatedEvent.builder()
+                .estateId(trade.getEstate().getEstateId())
+                .tradeId(trade.getTradeId())
+                .sellerId(trade.getSeller().getCustomerId())
+                .buyerId(trade.getBuyer().getCustomerId())
+                .tokenPrice(trade.getTokenPrice())
+                .tradeTokenAmount(trade.getTradeTokenAmount())
+                .tradeDate(trade.getTradeDate())
+                .build();
     }
 
     @Override
@@ -94,7 +116,6 @@ public class TradeServiceImpl implements TradeService {
         return tradeRepository.findByBuyer_CustomerId(buyerId);
     }
 
-    @Override
     public void buy(BuyEstateRequest request, Long customerId) {
         int amount = request.getTradeTokenAmount();
         int price = request.getTokenPrice();
@@ -103,13 +124,13 @@ public class TradeServiceImpl implements TradeService {
             throw new CustomException(ErrorCode.INSUFFICIENT_CASH);
         }
 
-        KafkaProducerDto msg = KafkaProducerDto.builder()
+        OrderCreatedEvent msg = OrderCreatedEvent.builder()
                 .estateId(request.getEstateId())
                 .customerId(customerId)
                 .tokenPrice(price)
                 .tradeTokenAmount(amount)
                 .build();
-        kafkaProducerService.sendOrder(msg);
+        kafkaProducerService.sendOrderCreated(msg);
         log.info("[매수 Kafka 전송 완료] 고객: {}, 수량: {}, 가격: {}", customerId, amount, price);
     }
 
@@ -141,7 +162,6 @@ public class TradeServiceImpl implements TradeService {
 
     @Override
     public void sell(SellEstateRequest request, Long customerId) {
-        log.info("sell 들어옴");
         Long estateId = request.getEstateId();
 
         // ✅ 입력값이 양수더라도 매도(-)기 때문에 음수로 변환해줌
@@ -151,13 +171,13 @@ public class TradeServiceImpl implements TradeService {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
 
-        KafkaProducerDto msg = KafkaProducerDto.builder()
+        OrderCreatedEvent msg = OrderCreatedEvent.builder()
                 .estateId(estateId)
                 .customerId(customerId)
                 .tokenPrice(request.getTokenPrice())
                 .tradeTokenAmount(sellAmt)
                 .build();
-        kafkaProducerService.sendOrder(msg);
+        kafkaProducerService.sendOrderCreated(msg);
         log.info("[매도 Kafka 전송 완료] 고객: {}, 부동산: {}, 수량: {}", customerId, estateId, sellAmt);
     }
 
