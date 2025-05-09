@@ -22,8 +22,18 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/customer/login", "/customer/create").permitAll()
-//                        .requestMatchers("**").permitAll()
+//                          .requestMatchers("**").permitAll()
                         .anyRequest().authenticated()
+//                .authorizeHttpRequests(auth -> auth
+//                        // 회원가입·로그인과 trade API 를 모두 인증 없이 허용
+//                        .requestMatchers(
+//                                "/customer/login",
+//                                "/customer/create",
+//                                "/trade/**"
+//                        ).permitAll()
+
+                        // 그 외 모든 요청은 인증 필요
+//                        .anyRequest().authenticated()
                 )
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable);
