@@ -10,8 +10,10 @@ import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.customer.service.CustomerService;
 import com.piehouse.woorepie.estate.service.impliment.EstateServiceImpl;
+import com.piehouse.woorepie.global.dto.request.SmsAuthRequest;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
+import com.piehouse.woorepie.global.service.impliment.SmsServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -36,8 +38,24 @@ public class CustomerServiceImpl implements CustomerService {
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
-    private static final int ACCOUNT_NUMBER_LENGTH = 15;
+    private final int ACCOUNT_NUMBER_LENGTH = 15;
     private final EstateServiceImpl estateServiceImpl;
+    private final SmsServiceImpl smsServiceImpl;
+
+    @Override
+    public void createSmsAuth(SmsAuthRequest smsAuthRequest) {
+        try {
+            String code = String.valueOf(secureRandom.nextInt(900_000) + 100_000);
+
+            // 인증번호 redis에 저장
+            smsServiceImpl.redisSmsCode(smsAuthRequest.getPhoneNumber(), code);
+
+            // 문자 전송
+            smsServiceImpl.sendSms(smsAuthRequest.getPhoneNumber(), code);
+        } catch (Exception e) {
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
+        }
+    }
 
     @Override
     public void customerLogin(LoginCustomerRequest customerRequest, HttpServletRequest request) {

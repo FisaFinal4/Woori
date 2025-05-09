@@ -4,9 +4,12 @@ import com.piehouse.woorepie.customer.dto.SessionCustomer;
 import com.piehouse.woorepie.customer.dto.request.CreateCustomerRequest;
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerResponse;
+import com.piehouse.woorepie.global.dto.request.SmsAuthRequest;
 import jakarta.servlet.http.HttpServletRequest;
 
 public interface CustomerService {
+
+    void createSmsAuth(SmsAuthRequest smsAuthRequest);
 
     void customerLogin(LoginCustomerRequest customerRequest, HttpServletRequest request);
 

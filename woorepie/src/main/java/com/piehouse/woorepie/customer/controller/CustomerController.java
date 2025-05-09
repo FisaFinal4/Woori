@@ -5,6 +5,7 @@ import com.piehouse.woorepie.customer.dto.request.CreateCustomerRequest;
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerResponse;
 import com.piehouse.woorepie.customer.service.CustomerService;
+import com.piehouse.woorepie.global.dto.request.SmsAuthRequest;
 import com.piehouse.woorepie.global.response.ApiResponse;
 import com.piehouse.woorepie.global.response.ApiResponseUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,6 +24,13 @@ import org.springframework.web.bind.annotation.*;
 public class CustomerController {
 
     private final CustomerService customerService;
+
+    @PostMapping("/sms/create")
+    public ResponseEntity<ApiResponse<Void>> createSmsAuth (@RequestBody @Valid SmsAuthRequest smsAuthRequest, HttpServletRequest request) {
+        log.info("SMS Auth customer request");
+        customerService.createSmsAuth(smsAuthRequest);
+        return ApiResponseUtil.success(null, request);
+    }
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<Void>> login(@RequestBody LoginCustomerRequest dto,
