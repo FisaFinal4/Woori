@@ -1,6 +1,7 @@
 package com.piehouse.woorepie.agent.controller;
 
 import com.piehouse.woorepie.agent.dto.request.CreateAgentRequest;
+import com.piehouse.woorepie.agent.dto.request.LoginAgentRequest;
 import com.piehouse.woorepie.agent.service.AgentService;
 import com.piehouse.woorepie.global.response.ApiResponse;
 import com.piehouse.woorepie.global.response.ApiResponseUtil;
@@ -23,13 +24,19 @@ public class AgentController {
 
     private final AgentService agentService;
 
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<Void>> loginAgent(@Valid @RequestBody LoginAgentRequest loginAgentRequest, HttpServletRequest request) {
+        log.info("Login agent request");
+        agentService.loginAgent(loginAgentRequest, request);
+        return ApiResponseUtil.success(null, request);
+    }
+
     @PostMapping("/create")
     public ResponseEntity<ApiResponse<Void>> createAgent(@Valid @RequestBody CreateAgentRequest agentRequest, HttpServletRequest request) {
         log.info("Signing agent request");
         agentService.createAgent(agentRequest, request);
         return ApiResponseUtil.of(HttpStatus.CREATED,"대행인 가입 성공", null, request);
     }
-
 
 
 }
