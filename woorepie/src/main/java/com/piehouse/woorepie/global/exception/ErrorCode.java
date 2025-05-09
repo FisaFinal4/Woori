@@ -8,6 +8,8 @@ public enum ErrorCode {
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "입력값이 유효하지 않습니다."),
     TOKEN_NON_EXIST(HttpStatus.BAD_REQUEST, "해당 고객의 보유 내역이 없습니다."),
     INSUFFICIENT_CASH(HttpStatus.BAD_REQUEST, "보유 현금이 부족합니다."), // 추가
+    SMS_CODE_INVALID(HttpStatus.BAD_REQUEST, "인증 코드가 일치하지 않습니다."),
+    SMS_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "인증 코드가 만료되었거나 존재하지 않습니다."),
 
     // 401: 인증 실패
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "로그인 정보가 일치하지 않습니다."),

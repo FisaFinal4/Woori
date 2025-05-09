@@ -4,9 +4,12 @@ import com.piehouse.woorepie.customer.dto.SessionCustomer;
 import com.piehouse.woorepie.customer.dto.request.CreateCustomerRequest;
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerResponse;
+import com.piehouse.woorepie.customer.entity.Account;
 import com.piehouse.woorepie.customer.entity.Customer;
+import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.customer.service.CustomerService;
+import com.piehouse.woorepie.estate.service.impliment.EstateServiceImpl;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -29,9 +33,11 @@ import java.util.UUID;
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
-    final int ACCOUNT_NUMBER_LENGTH = 15;
+    private static final int ACCOUNT_NUMBER_LENGTH = 15;
+    private final EstateServiceImpl estateServiceImpl;
 
     @Override
     public void customerLogin(LoginCustomerRequest customerRequest, HttpServletRequest request) {
@@ -48,7 +54,6 @@ public class CustomerServiceImpl implements CustomerService {
         }
 
         try {
-
             SessionCustomer principal = SessionCustomer.fromCustomer(customer);
             Authentication auth = new UsernamePasswordAuthenticationToken(
                     principal,
@@ -103,17 +108,18 @@ public class CustomerServiceImpl implements CustomerService {
 
     }
 
+    //계좌 번호 생성
     public String generateUniqueAccountNumber() {
         String accountNumber;
         do {
-            accountNumber = generateRandomDigits(ACCOUNT_NUMBER_LENGTH);
+            accountNumber = generateRandomDigits();
         } while (customerRepository.existsByAccountNumber(accountNumber));
         return accountNumber;
     }
 
-    private String generateRandomDigits(int length) {
-        StringBuilder sb = new StringBuilder(length);
-        for (int i = 0; i < length; i++) {
+    private String generateRandomDigits() {
+        StringBuilder sb = new StringBuilder(ACCOUNT_NUMBER_LENGTH);
+        for (int i = 0; i < ACCOUNT_NUMBER_LENGTH; i++) {
             if(i==3||i==7||i==11) sb.append("-");
             sb.append(secureRandom.nextInt(10));
         }
@@ -126,14 +132,30 @@ public class CustomerServiceImpl implements CustomerService {
         Customer customer = customerRepository.findById(sessionCustomer.getCustomerId())
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         try{
-            GetCustomerResponse getCustomerResponse = GetCustomerResponse.builder()
+
+            List<Account> accounts = accountRepository.findByCustomer(customer);
+
+            //토큰 보유액 계산
+            int totalAccountTokenPrice = accounts.stream()
+                    .mapToInt(account ->
+                            account.getAccountTokenAmount()
+                                    * estateServiceImpl
+                                    .getRedisEstatePrice(account.getEstate().getEstateId())
+                                    .getEstateTokenPrice()
+                    )
+                    .sum();
+
+            return GetCustomerResponse.builder()
                     .customerName(customer.getCustomerName())
                     .customerEmail(customer.getCustomerEmail())
                     .customerPhoneNumber(customer.getCustomerPhoneNumber())
                     .customerAddress(customer.getCustomerAddress())
+                    .accountNumber(customer.getAccountNumber())
+                    .totalAccountTokenPrice(totalAccountTokenPrice)
+                    .accountBalance(customer.getAccountBalance())
                     .customerJoinDate(customer.getCustomerJoinDate())
                     .build();
-            return getCustomerResponse;
+
         }catch (Exception e) {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
