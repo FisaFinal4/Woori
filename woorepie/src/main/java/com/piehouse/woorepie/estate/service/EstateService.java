@@ -9,11 +9,6 @@ public interface EstateService {
 
     RedisEstatePrice getRedisEstatePrice(Long estateId);
 
-    // 전체 매물 리스트 조회 (시세 포함)
-    List<GetEstateSimpleResponse> getAllEstates();
-
-
-
-    }
-
-
+    // 청약 완료된 매물 리스트 조회 (거래 가능 매물)
+    List<GetEstateSimpleResponse> getTradableEstates();
+}

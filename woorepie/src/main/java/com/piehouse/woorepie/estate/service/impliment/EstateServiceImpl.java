@@ -14,6 +14,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,26 +28,29 @@ public class EstateServiceImpl implements EstateService {
     private static final String REDIS_ESTATE_PRICE_KEY_PREFIX = "estate:price:";
 
     @Override
-    public List<GetEstateSimpleResponse> getAllEstates() {
+    public List<GetEstateSimpleResponse> getTradableEstates() {
         List<Estate> estates = estateRepository.findAll();
+        LocalDateTime now = LocalDateTime.now();
 
-        return estates.stream().map(estate -> {
-            Long estateId = estate.getEstateId();
+        return estates.stream()
+                .filter(e -> e.getSubEndDate() != null && e.getSubEndDate().isBefore(now))
+                .map(estate -> {
+                    Long estateId = estate.getEstateId();
+                    RedisEstatePrice price = getRedisEstatePrice(estateId);
 
-            RedisEstatePrice price = getRedisEstatePrice(estateId);
-
-            return new GetEstateSimpleResponse(
-                    estateId,
-                    estate.getEstateName(),
-                    estate.getEstateCity(),
-                    price.getTokenAmount(),
-                    price.getEstateTokenPrice(),
-                    estate.getEstateRegistrationDate()
-            );
-        }).collect(Collectors.toList());
+                    return new GetEstateSimpleResponse(
+                            estateId,
+                            estate.getEstateName(),
+                            estate.getEstateCity(),
+                            price.getTokenAmount(),
+                            price.getEstateTokenPrice(),
+                            estate.getEstateRegistrationDate()
+                    );
+                })
+                .collect(Collectors.toList());
     }
 
-    // Redis + PostgreSQL 기반 시세 조회
+    @Override
     public RedisEstatePrice getRedisEstatePrice(Long estateId) {
         try {
             String key = REDIS_ESTATE_PRICE_KEY_PREFIX + estateId;
