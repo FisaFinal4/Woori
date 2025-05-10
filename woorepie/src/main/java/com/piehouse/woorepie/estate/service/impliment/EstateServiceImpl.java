@@ -1,6 +1,7 @@
 package com.piehouse.woorepie.estate.service.impliment;
 
 import com.piehouse.woorepie.estate.dto.RedisEstatePrice;
+import com.piehouse.woorepie.estate.dto.response.GetEstateSimpleResponse;
 import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.estate.entity.EstatePrice;
 import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
@@ -13,6 +14,9 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 public class EstateServiceImpl implements EstateService {
@@ -22,20 +26,37 @@ public class EstateServiceImpl implements EstateService {
     private final EstatePriceRepository estatePriceRepository;
     private static final String REDIS_ESTATE_PRICE_KEY_PREFIX = "estate:price:";
 
-    // 매물 시세 redis 저장
+    @Override
+    public List<GetEstateSimpleResponse> getAllEstates() {
+        List<Estate> estates = estateRepository.findAll();
+
+        return estates.stream().map(estate -> {
+            Long estateId = estate.getEstateId();
+
+            RedisEstatePrice price = getRedisEstatePrice(estateId);
+
+            return new GetEstateSimpleResponse(
+                    estateId,
+                    estate.getEstateName(),
+                    estate.getEstateCity(),
+                    price.getTokenAmount(),
+                    price.getEstateTokenPrice(),
+                    estate.getEstateRegistrationDate()
+            );
+        }).collect(Collectors.toList());
+    }
+
+    // Redis + PostgreSQL 기반 시세 조회
     public RedisEstatePrice getRedisEstatePrice(Long estateId) {
         try {
             String key = REDIS_ESTATE_PRICE_KEY_PREFIX + estateId;
-
             ValueOperations<String, Object> ops = redisObjectTemplate.opsForValue();
 
-            // Redis에서 꺼내기
             Object cached = ops.get(key);
             if (cached instanceof RedisEstatePrice price) {
                 return price;
             }
 
-            // PostgreSQL에서 꺼내기
             Estate estate = estateRepository.findById(estateId)
                     .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
@@ -43,11 +64,8 @@ public class EstateServiceImpl implements EstateService {
                     .findTopByEstate_EstateIdOrderByEstatePriceDateDesc(estateId)
                     .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
-            // 발행 토큰 개수
             int tokenCount = estate.getTokenAmount();
-            // 가장 최근 매물 시세
             int estatePrice = latest.getEstatePrice();
-            // 토큰 당 가격
             int estateTokenPrice = tokenCount != 0 ? estatePrice / tokenCount : 0;
 
             RedisEstatePrice rep = RedisEstatePrice.builder()
@@ -56,13 +74,10 @@ public class EstateServiceImpl implements EstateService {
                     .tokenAmount(tokenCount)
                     .build();
 
-            //Redis에 저장
-            ops.set(key, rep);
-
+            ops.set(key, rep); // 캐싱
             return rep;
-        }catch (Exception e) {
+        } catch (Exception e) {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
     }
-
 }
