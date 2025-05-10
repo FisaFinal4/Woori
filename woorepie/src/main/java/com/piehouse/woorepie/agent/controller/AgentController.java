@@ -31,6 +31,13 @@ public class AgentController {
         return ApiResponseUtil.success(null, request);
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logoutAgent(HttpServletRequest request) {
+        log.info("Logout agent request");
+        agentService.logoutAgent(request);
+        return ApiResponseUtil.success(null, request);
+    }
+
     @PostMapping("/create")
     public ResponseEntity<ApiResponse<Void>> createAgent(@Valid @RequestBody CreateAgentRequest agentRequest, HttpServletRequest request) {
         log.info("Signing agent request");

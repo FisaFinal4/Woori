@@ -11,6 +11,7 @@ import com.piehouse.woorepie.global.exception.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
@@ -61,6 +62,21 @@ public class AgentServiceImpl implements AgentService {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
 
+    }
+
+    @Override
+    public void logoutAgent(HttpServletRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null ||
+                authentication.getAuthorities().stream()
+                        .noneMatch(auth -> auth.getAuthority().equals("ROLE_AGENT"))) {
+            throw new AccessDeniedException("로그아웃은 AGENT 권한을 가진 사용자만 가능합니다.");
+        }
+
+        HttpSession session = request.getSession(false);
+        if (session != null) session.invalidate();
+        SecurityContextHolder.clearContext();
     }
 
     @Override

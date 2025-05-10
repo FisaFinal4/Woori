@@ -8,6 +8,8 @@ public interface AgentService {
 
     void loginAgent(LoginAgentRequest agentRequest, HttpServletRequest request);
 
+    void logoutAgent(HttpServletRequest request);
+
     void createAgent(CreateAgentRequest agentRequest, HttpServletRequest request);
 
 }
