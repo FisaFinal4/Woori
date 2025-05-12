@@ -13,4 +13,6 @@ public interface EstatePriceRepository extends JpaRepository<EstatePrice, Long> 
     Optional<EstatePrice> findTopByEstate_EstateIdOrderByEstatePriceDateDesc(Long estateId);
     List<EstatePrice> findAllByEstate_EstateIdOrderByEstatePriceDateDesc(Long estateId);
 
+    List<EstatePrice> findAllByEstate_EstateIdOrderByEstatePriceDateDesc(Long estateId);
+
 }

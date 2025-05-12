@@ -1,11 +1,14 @@
 package com.piehouse.woorepie.estate.dto.request;
 
-import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Getter
 @Setter
+@NoArgsConstructor
 public class ModifyEstateRequest {
+
     private Long estateId;
+
     private String estateDescription;
+
 }
