@@ -2,20 +2,21 @@ package com.piehouse.woorepie.customer.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-@Data
-@Builder
+@Getter
+@NoArgsConstructor
 public class LoginCustomerRequest {
 
-    @Email @NotBlank
-    String customerEmail;
+    @Email 
+    @NotBlank(message = "customerEmail은 필수입니다.")
+    private String customerEmail;
 
-    @NotBlank
-    String customerPassword;
+    @NotBlank(message = "customerPassword은 필수입니다.")
+    private String customerPassword;
 
-    @NotBlank
-    String customerPhoneNumber;
+    @NotBlank(message = "customerPhoneNumber은 필수입니다.")
+    private String customerPhoneNumber;
 
 }

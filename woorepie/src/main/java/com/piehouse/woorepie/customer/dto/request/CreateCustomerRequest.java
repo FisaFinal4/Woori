@@ -4,35 +4,36 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
-import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
-@Data
-@Builder
+@Getter
+@NoArgsConstructor
 public class CreateCustomerRequest {
 
-    @NotBlank
-    String customerName;
+    @NotBlank(message = "customerName은 필수입니다.")
+    private String customerName;
 
-    @Email @NotBlank
-    String customerEmail;
+    @Email
+    @NotBlank(message = "customerEmail은 필수입니다.")
+    private String customerEmail;
 
-    @NotBlank
-    String customerPassword;
+    @NotBlank(message = "customerPassword은 필수입니다.")
+    private String customerPassword;
 
-    @NotBlank
-    String customerPhoneNumber;
+    @NotBlank(message = "customerPhoneNumber은 필수입니다.")
+    private String customerPhoneNumber;
 
-    @NotBlank
-    String customerAddress;
+    @NotBlank(message = "customerAddress은 필수입니다.")
+    private String customerAddress;
 
-    @NotNull
-    @Past
-    LocalDate customerDateOfBirth;
+    @Past(message = "customerDateOfBirth은 과거여야 합니다.")
+    @NotNull(message = "customerDateOfBirth은 필수입니다.")
+    private LocalDate customerDateOfBirth;
 
-    @NotNull
-    String customerIdentificationUrl;
+    @NotBlank(message = "customerIdentificationUrl은 필수입니다.")
+    private String customerIdentificationUrl;
 
 }

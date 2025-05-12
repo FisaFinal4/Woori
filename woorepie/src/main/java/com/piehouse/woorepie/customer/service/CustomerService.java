@@ -8,12 +8,12 @@ import jakarta.servlet.http.HttpServletRequest;
 
 public interface CustomerService {
 
-    void customerLogin(LoginCustomerRequest customerRequest, HttpServletRequest request);
+    void customerLogin(LoginCustomerRequest requestDto, HttpServletRequest request);
 
     void customerLogout(HttpServletRequest request);
 
-    void createCustomer(CreateCustomerRequest customerRequest);
+    void createCustomer(CreateCustomerRequest requestDto);
 
-    GetCustomerResponse getCustomer(SessionCustomer sessionCustomer);
+    GetCustomerResponse getCustomer(SessionCustomer session);
 
 }
