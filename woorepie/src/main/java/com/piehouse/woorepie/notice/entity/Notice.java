@@ -37,4 +37,10 @@ public class Notice {
     @Column(nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime noticeDate;
 
+    // ✅ 공시 수정 메서드 추가
+    public void updateNotice(String title, String content, String fileUrl) {
+        this.noticeTitle = title;
+        this.noticeContent = content;
+        this.noticeFileUrl = fileUrl;
+    }
 }
