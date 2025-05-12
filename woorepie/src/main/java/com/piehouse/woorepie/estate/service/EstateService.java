@@ -1,7 +1,7 @@
 package com.piehouse.woorepie.estate.service;
 
 import com.piehouse.woorepie.estate.dto.request.ModifyEstateRequest;
-import com.piehouse.woorepie.estate.entity.RedisEstatePrice;
+import com.piehouse.woorepie.estate.dto.RedisEstatePrice;
 import com.piehouse.woorepie.estate.dto.response.GetEstateDetailsResponse;
 import com.piehouse.woorepie.estate.dto.response.GetEstatePriceResponse;
 import com.piehouse.woorepie.estate.dto.response.GetEstateSimpleResponse;
