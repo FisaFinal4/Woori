@@ -5,15 +5,14 @@ import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.estate.entity.Estate;
+import com.piehouse.woorepie.estate.repository.EstateRepository;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent;
 import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
 import com.piehouse.woorepie.global.kafka.service.KafkaProducerService;
-import com.piehouse.woorepie.trade.dto.request.BuyEstateRequest;
-import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
-import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
-import com.piehouse.woorepie.trade.dto.request.SellEstateRequest;
+import com.piehouse.woorepie.subscription.entity.Subscription;
+import com.piehouse.woorepie.trade.dto.request.*;
 import com.piehouse.woorepie.trade.entity.Trade;
 import com.piehouse.woorepie.trade.repository.RedisTradeRepository;
 import com.piehouse.woorepie.trade.repository.TradeRepository;
@@ -22,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.piehouse.woorepie.subscription.repository.SubscriptionRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,6 +38,8 @@ public class TradeServiceImpl implements TradeService {
     private final CustomerRepository customerRepository;
     private final RedisTradeRepository redisOrderRepository;
     private final KafkaProducerService kafkaProducerService;
+    private final EstateRepository estateRepository;
+    private final SubscriptionRepository subscriptionRepository;
 
     @Override
     @Transactional
@@ -215,5 +217,23 @@ public class TradeServiceImpl implements TradeService {
                 .filter(o -> o.getCustomerId().equals(customerId) && o.getTradeTokenAmount() < 0)
                 .mapToInt(RedisEstateTradeValue::getTradeTokenAmount)
                 .sum();
+    }
+
+    // 청약 신청
+    @Override
+    public void createSubscription(CreateSubscriptionTradeRequest request, Long customerId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        Estate estate = estateRepository.findById(request.getEstateId())
+                .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        Subscription subscription = Subscription.builder()
+                .customer(customer)
+                .estate(estate)
+                .subTokenAmount(request.getSubAmount())
+                .build();
+
+        subscriptionRepository.save(subscription);
     }
 }
