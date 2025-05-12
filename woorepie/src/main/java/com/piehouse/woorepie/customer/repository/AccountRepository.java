@@ -16,7 +16,7 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     Optional<Account> findByCustomer_CustomerIdAndEstate_EstateId(Long customerId, Long estateId);
 
     // 매수 검증용: 고객의 전체 계좌 조회
-    Optional<Account> findByCustomer_CustomerId(Long customerId); // ✅ Object → Account 로 수정
+    List<Account> findByCustomer_CustomerId(Long customerId); // Object → Account 로 수정
 
     // 고객과 매물로 계좌 찾기
     Optional<Account> findByCustomerAndEstate(Customer customer, Estate estate);
