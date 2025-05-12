@@ -1,4 +1,4 @@
-package com.piehouse.woorepie.estate.entity;
+package com.piehouse.woorepie.estate.dto;
 
 import lombok.Builder;
 import lombok.Getter;

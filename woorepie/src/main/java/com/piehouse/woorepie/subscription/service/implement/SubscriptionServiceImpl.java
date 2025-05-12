@@ -2,7 +2,7 @@ package com.piehouse.woorepie.subscription.service.implement;
 
 import com.piehouse.woorepie.agent.entity.Agent;
 import com.piehouse.woorepie.agent.repository.AgentRepository;
-import com.piehouse.woorepie.estate.entity.RedisEstatePrice;
+import com.piehouse.woorepie.estate.dto.RedisEstatePrice;
 import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.estate.entity.EstatePrice;
 import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
