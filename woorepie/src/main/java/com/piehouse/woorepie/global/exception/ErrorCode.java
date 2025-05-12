@@ -24,6 +24,7 @@ public enum ErrorCode {
     ESTATE_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 매물을 찾을 수 없습니다."),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 리소스를 찾을 수 없습니다."),
     ACCOUNT_NON_EXIST(HttpStatus.NOT_FOUND, "사용자 계좌를 찾을 수 없습니다."), // 추가
+    NOTIFICATION_NON_EXIST(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다."),
 
     // 409: 리소스 충돌
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "이미 존재하는 리소스입니다."),

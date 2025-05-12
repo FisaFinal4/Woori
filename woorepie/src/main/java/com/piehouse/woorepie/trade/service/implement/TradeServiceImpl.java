@@ -10,6 +10,7 @@ import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent;
 import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
 import com.piehouse.woorepie.global.kafka.service.KafkaProducerService;
+import com.piehouse.woorepie.notification.service.NotificationService;
 import com.piehouse.woorepie.trade.dto.request.BuyEstateRequest;
 import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
 import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
@@ -38,10 +39,12 @@ public class TradeServiceImpl implements TradeService {
     private final CustomerRepository customerRepository;
     private final RedisTradeRepository redisOrderRepository;
     private final KafkaProducerService kafkaProducerService;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
     public Trade saveTrade(Estate estate, Customer seller, Customer buyer, int tradeTokenAmount, int tokenPrice) {
+        LocalDateTime tradeTime = LocalDateTime.now();
         // 1. PostgreSQL에 거래 내역 저장
         Trade trade = Trade.builder()
                 .estate(estate)
@@ -49,7 +52,7 @@ public class TradeServiceImpl implements TradeService {
                 .buyer(buyer)
                 .tradeTokenAmount(tradeTokenAmount)
                 .tokenPrice(tokenPrice)
-                .tradeDate(LocalDateTime.now())
+                .tradeDate(tradeTime)
                 .build();
 
         Trade savedTrade = tradeRepository.save(trade);
@@ -58,7 +61,14 @@ public class TradeServiceImpl implements TradeService {
         TransactionCreatedEvent event = createEvent(savedTrade);
         kafkaProducerService.sendTransactionCreated(event);
 
-        // 3. 판매자 계좌 업데이트
+        // 3. 사용자에게 알림 전송
+        // 매수자에게 알림 전송
+        notificationService.sendTradeNotification(buyer, estate.getEstateName(), tokenPrice, tradeTokenAmount, tradeTime, true);
+        // 매도자에게 알림 전송
+        notificationService.sendTradeNotification(seller, estate.getEstateName(), tokenPrice, tradeTokenAmount, tradeTime, false);
+
+
+        // 4. 판매자 계좌 업데이트
         Account sellerAccount = accountRepository.findByCustomerAndEstate(seller, estate)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NON_EXIST));
 
@@ -69,7 +79,7 @@ public class TradeServiceImpl implements TradeService {
         sellerAccount.updateTokenAmount(sellerAccount.getAccountTokenAmount() - tradeTokenAmount)
                 .updateTotalAmount(sellerAccount.getTotalAccountAmount() - tradeAmount);
 
-        // 4. 구매자 계좌 업데이트
+        // 5. 구매자 계좌 업데이트
         Account buyerAccount = accountRepository.findByCustomerAndEstate(buyer, estate)
                 .orElseGet(() -> {
                     // 새 계좌 생성 후 저장
