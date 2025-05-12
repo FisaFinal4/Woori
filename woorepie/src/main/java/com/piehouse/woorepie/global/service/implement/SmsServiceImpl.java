@@ -1,4 +1,4 @@
-package com.piehouse.woorepie.global.service.impliment;
+package com.piehouse.woorepie.global.service.implement;
 
 import com.piehouse.woorepie.global.dto.request.SmsCodeRequest;
 import com.piehouse.woorepie.global.dto.request.SmsVerifyRequest;

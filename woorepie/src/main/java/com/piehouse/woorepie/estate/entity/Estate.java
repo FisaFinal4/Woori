@@ -85,4 +85,11 @@ public class Estate {
 
     private BigDecimal tradedEstateArea;
 
+    // 매물 정보 수정
+    public Estate updateDescription(String newDescription) {
+        this.estateDescription = newDescription;
+        return this;
+    }
+
+
 }
