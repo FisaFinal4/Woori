@@ -11,20 +11,20 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class GetCustomerResponse {
 
-    String customerName;
+    private String customerName;
 
-    String customerEmail;
+    private String customerEmail;
 
-    String customerPhoneNumber;
+    private String customerPhoneNumber;
 
-    String customerAddress;
+    private String customerAddress;
 
-    String accountNumber;
+    private String accountNumber;
 
-    Integer accountBalance;
+    private Integer accountBalance;
 
-    Integer totalAccountTokenPrice;
+    private Integer totalAccountTokenPrice;
 
-    LocalDateTime customerJoinDate;
+    private LocalDateTime customerJoinDate;
 
 }

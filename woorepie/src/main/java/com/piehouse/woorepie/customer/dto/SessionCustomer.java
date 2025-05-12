@@ -1,6 +1,7 @@
 package com.piehouse.woorepie.customer.dto;
 
 import com.piehouse.woorepie.customer.entity.Customer;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
@@ -12,6 +13,7 @@ import java.util.List;
 
 @Getter
 @Builder
+@AllArgsConstructor
 public class SessionCustomer implements UserDetails {
 
     private final Long customerId;
