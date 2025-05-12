@@ -7,7 +7,7 @@ import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.estate.entity.EstatePrice;
 import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
 import com.piehouse.woorepie.estate.repository.EstateRepository;
-import com.piehouse.woorepie.estate.service.EstateService;
+import com.piehouse.woorepie.estate.service.implement.EstateServiceImpl;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.subscription.dto.request.RegisterEstateRequest;
@@ -32,7 +32,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final EstatePriceRepository estatePriceRepository;
     private final AgentRepository agentRepository;
     private final SubscriptionRepository subscriptionRepository;
-    private final EstateService estateService;
+    private final EstateServiceImpl estateServiceImpl;
 
     @Override
     @Transactional
@@ -78,7 +78,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         return subs.stream().map(sub -> {
             Estate estate = sub.getEstate();
-            RedisEstatePrice price = estateService.getRedisEstatePrice(estate.getEstateId());
+            RedisEstatePrice price = estateServiceImpl.getRedisEstatePrice(estate.getEstateId());
 
             return GetSubscriptionSimpleResponse.builder()
                     .estateId(estate.getEstateId())
@@ -124,4 +124,5 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .appraisalReportUrl(estate.getAppraisalReportUrl())
                 .build();
     }
+
 }

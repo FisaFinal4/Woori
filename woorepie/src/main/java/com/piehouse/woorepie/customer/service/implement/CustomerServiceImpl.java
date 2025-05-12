@@ -3,6 +3,7 @@ package com.piehouse.woorepie.customer.service.implement;
 import com.piehouse.woorepie.customer.dto.SessionCustomer;
 import com.piehouse.woorepie.customer.dto.request.CreateCustomerRequest;
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
+import com.piehouse.woorepie.customer.dto.response.GetCustomerAccountResponse;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerResponse;
 import com.piehouse.woorepie.customer.entity.Account;
 import com.piehouse.woorepie.customer.entity.Customer;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -72,7 +74,6 @@ public class CustomerServiceImpl implements CustomerService {
         );
 
     }
-
 
     // 로그아웃
     @Override
@@ -125,7 +126,7 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     // 계좌 번호 생성
-    public String generateUniqueAccountNumber() {
+    private String generateUniqueAccountNumber() {
 
         String accountNumber;
         int maxAttempts = 10;
@@ -154,7 +155,6 @@ public class CustomerServiceImpl implements CustomerService {
         return sb.toString();
 
     }
-
 
     // 마이페이지 조회
     @Override
@@ -185,6 +185,26 @@ public class CustomerServiceImpl implements CustomerService {
                 .accountBalance(customer.getAccountBalance())
                 .customerJoinDate(customer.getCustomerJoinDate())
                 .build();
+    }
+
+    @Override
+    public List<GetCustomerAccountResponse> getCustomerAccount(SessionCustomer session) {
+
+        Customer customer = customerRepository.findById(session.getCustomerId())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        List<Account> accounts = accountRepository.findByCustomer(customer);
+
+        List<GetCustomerAccountResponse> accountResponses = accounts.stream()
+                .map(account -> GetCustomerAccountResponse.builder()
+                        .estateId(account.getEstate().getEstateId())
+                        .estateName(account.getEstate().getEstateName())
+                        .accountTokenAmount(account.getAccountTokenAmount())
+                        .accountTokenPrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getEstateTokenPrice())
+                        .build())
+                .collect(Collectors.toList());
+
+        return accountResponses;
     }
 
 }

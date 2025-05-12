@@ -111,40 +111,37 @@ public class EstateServiceImpl implements EstateService {
         estate.updateDescription(request.getEstateDescription());
     }
 
-
-
-    @Override
+    // 레디스에서 매물 현재 시세 가져오기
     public RedisEstatePrice getRedisEstatePrice(Long estateId) {
-        try {
-            String key = REDIS_ESTATE_PRICE_KEY_PREFIX + estateId;
-            ValueOperations<String, Object> ops = redisObjectTemplate.opsForValue();
 
-            Object cached = ops.get(key);
-            if (cached instanceof RedisEstatePrice price) {
-                return price;
-            }
+        String key = REDIS_ESTATE_PRICE_KEY_PREFIX + estateId;
+        ValueOperations<String, Object> ops = redisObjectTemplate.opsForValue();
 
-            Estate estate = estateRepository.findById(estateId)
-                    .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
-
-            EstatePrice latest = estatePriceRepository
-                    .findTopByEstate_EstateIdOrderByEstatePriceDateDesc(estateId)
-                    .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
-
-            int tokenCount = estate.getTokenAmount();
-            int estatePrice = latest.getEstatePrice();
-            int estateTokenPrice = tokenCount != 0 ? estatePrice / tokenCount : 0;
-
-            RedisEstatePrice rep = RedisEstatePrice.builder()
-                    .estatePrice(estatePrice)
-                    .estateTokenPrice(estateTokenPrice)
-                    .tokenAmount(tokenCount)
-                    .build();
-
-            ops.set(key, rep); // 캐싱
-            return rep;
-        } catch (Exception e) {
-            throw new CustomException(ErrorCode.INTERNAL_ERROR);
+        Object cached = ops.get(key);
+        if (cached instanceof RedisEstatePrice price) {
+            return price;
         }
+
+        Estate estate = estateRepository.findById(estateId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
+
+        EstatePrice latest = estatePriceRepository
+                .findTopByEstate_EstateIdOrderByEstatePriceDateDesc(estateId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
+
+        int tokenCount = estate.getTokenAmount();
+        int estatePrice = latest.getEstatePrice();
+        int estateTokenPrice = tokenCount != 0 ? estatePrice / tokenCount : 0;
+
+        RedisEstatePrice rep = RedisEstatePrice.builder()
+                .estatePrice(estatePrice)
+                .estateTokenPrice(estateTokenPrice)
+                .tokenAmount(tokenCount)
+                .build();
+
+        ops.set(key, rep); // 캐싱
+        return rep;
+
     }
+
 }

@@ -3,8 +3,11 @@ package com.piehouse.woorepie.customer.service;
 import com.piehouse.woorepie.customer.dto.SessionCustomer;
 import com.piehouse.woorepie.customer.dto.request.CreateCustomerRequest;
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
+import com.piehouse.woorepie.customer.dto.response.GetCustomerAccountResponse;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerResponse;
 import jakarta.servlet.http.HttpServletRequest;
+
+import java.util.List;
 
 public interface CustomerService {
 
@@ -15,5 +18,7 @@ public interface CustomerService {
     void createCustomer(CreateCustomerRequest requestDto);
 
     GetCustomerResponse getCustomer(SessionCustomer session);
+
+    List<GetCustomerAccountResponse> getCustomerAccount(SessionCustomer session);
 
 }
