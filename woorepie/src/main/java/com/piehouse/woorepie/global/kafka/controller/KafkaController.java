@@ -14,10 +14,10 @@ public class KafkaController {
 
     private final KafkaProducerServiceImpl producerService;
 
-    @PostMapping("/test")
-    public String sendToA(@RequestParam String message) {
-        producerService.sendToTopicTest(message);
-        return "sent to topic test";
-    }
+//    @PostMapping("/test")
+//    public String sendToA(@RequestParam String message) {
+//        producerService.sendToTopicTest(message);
+//        return "sent to topic test";
+//    }
 
 }
