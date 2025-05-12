@@ -9,7 +9,7 @@ import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.customer.service.CustomerService;
-import com.piehouse.woorepie.estate.service.impliment.EstateServiceImpl;
+import com.piehouse.woorepie.estate.service.implement.EstateServiceImpl;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.global.kafka.dto.CustomerCreatedEvent;
