@@ -2,6 +2,7 @@ package com.piehouse.woorepie.customer.controller;
 
 import com.piehouse.woorepie.customer.dto.SessionCustomer;
 import com.piehouse.woorepie.customer.dto.request.CreateCustomerRequest;
+import com.piehouse.woorepie.customer.dto.response.GetCustomerSubscriptionResponse;
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerAccountResponse;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerResponse;
@@ -58,8 +59,15 @@ public class CustomerController {
     @GetMapping("/account")
     public ResponseEntity<ApiResponse<List<GetCustomerAccountResponse>>> getCustomerAccount(@AuthenticationPrincipal SessionCustomer session, HttpServletRequest request) {
         log.info("Get customer account request");
-        List<GetCustomerAccountResponse> getCustomerAccountResponse = customerService.getCustomerAccount(session);
-        return ApiResponseUtil.success(getCustomerAccountResponse, request);
+        List<GetCustomerAccountResponse> getCustomerAccountResponseList = customerService.getCustomerAccount(session);
+        return ApiResponseUtil.success(getCustomerAccountResponseList, request);
+    }
+
+    @GetMapping("/subscription")
+    public ResponseEntity<ApiResponse<List<GetCustomerSubscriptionResponse>>> getCustomerSubscription(@AuthenticationPrincipal SessionCustomer session, HttpServletRequest request) {
+        log.info("Get customer subscription request");
+        List<GetCustomerSubscriptionResponse> getCustomerSubscriptionResponseList = customerService.getCustomerSubscription(session);
+        return ApiResponseUtil.success(getCustomerSubscriptionResponseList, request);
     }
 
 }

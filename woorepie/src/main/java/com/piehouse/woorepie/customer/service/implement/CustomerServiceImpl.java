@@ -2,6 +2,7 @@ package com.piehouse.woorepie.customer.service.implement;
 
 import com.piehouse.woorepie.customer.dto.SessionCustomer;
 import com.piehouse.woorepie.customer.dto.request.CreateCustomerRequest;
+import com.piehouse.woorepie.customer.dto.response.GetCustomerSubscriptionResponse;
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerAccountResponse;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerResponse;
@@ -15,6 +16,8 @@ import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.global.kafka.dto.CustomerCreatedEvent;
 import com.piehouse.woorepie.global.kafka.service.impliment.KafkaProducerServiceImpl;
+import com.piehouse.woorepie.subscription.entity.Subscription;
+import com.piehouse.woorepie.subscription.repository.SubscriptionRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +42,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
     private final AccountRepository accountRepository;
+    private final SubscriptionRepository subscriptionRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
     private final EstateServiceImpl estateServiceImpl;
@@ -200,11 +204,35 @@ public class CustomerServiceImpl implements CustomerService {
                         .estateId(account.getEstate().getEstateId())
                         .estateName(account.getEstate().getEstateName())
                         .accountTokenAmount(account.getAccountTokenAmount())
-                        .accountTokenPrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getEstateTokenPrice())
+                        .accountTokenPrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getEstateTokenPrice()*account.getAccountTokenAmount())
                         .build())
                 .collect(Collectors.toList());
 
         return accountResponses;
+
+    }
+
+    @Override
+    public List<GetCustomerSubscriptionResponse> getCustomerSubscription(SessionCustomer session) {
+
+        Customer customer = customerRepository.findById(session.getCustomerId())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        List<Subscription> subscriptions = subscriptionRepository.findByCustomer(customer);
+
+        List<GetCustomerSubscriptionResponse> subscriptionResponses = subscriptions.stream()
+                .map(subscription -> GetCustomerSubscriptionResponse.builder()
+                        .estateId(subscription.getEstate().getEstateId())
+                        .estateName(subscription.getEstate().getEstateName())
+                        .subTokenAmount(subscription.getSubTokenAmount())
+                        .subTokenPrice(estateServiceImpl.getRedisEstatePrice(subscription.getEstate().getEstateId()).getEstateTokenPrice()*subscription.getSubTokenAmount())
+                        .subDate(subscription.getSubDate())
+                        .subStatus(subscription.getSubState())
+                        .build())
+                .collect(Collectors.toList());
+
+        return subscriptionResponses;
+
     }
 
 }

@@ -2,6 +2,7 @@ package com.piehouse.woorepie.customer.service;
 
 import com.piehouse.woorepie.customer.dto.SessionCustomer;
 import com.piehouse.woorepie.customer.dto.request.CreateCustomerRequest;
+import com.piehouse.woorepie.customer.dto.response.GetCustomerSubscriptionResponse;
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerAccountResponse;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerResponse;
@@ -20,5 +21,7 @@ public interface CustomerService {
     GetCustomerResponse getCustomer(SessionCustomer session);
 
     List<GetCustomerAccountResponse> getCustomerAccount(SessionCustomer session);
+
+    List<GetCustomerSubscriptionResponse> getCustomerSubscription(SessionCustomer session);
 
 }
