@@ -3,6 +3,7 @@ package com.piehouse.woorepie.trade.service;
 import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.trade.dto.request.BuyEstateRequest;
+import com.piehouse.woorepie.trade.dto.request.CreateSubscriptionTradeRequest;
 import com.piehouse.woorepie.trade.dto.request.SellEstateRequest;
 import com.piehouse.woorepie.trade.entity.Trade;
 
@@ -19,4 +20,5 @@ public interface TradeService {
 
     void buy(BuyEstateRequest request, Long customerId);
     void sell(SellEstateRequest request, Long customerId);
+    void createSubscription(CreateSubscriptionTradeRequest request, Long customerId);
 }
