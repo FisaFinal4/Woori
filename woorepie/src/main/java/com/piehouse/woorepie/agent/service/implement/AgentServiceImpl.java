@@ -3,6 +3,7 @@ package com.piehouse.woorepie.agent.service.implement;
 import com.piehouse.woorepie.agent.dto.SessionAgent;
 import com.piehouse.woorepie.agent.dto.request.CreateAgentRequest;
 import com.piehouse.woorepie.agent.dto.request.LoginAgentRequest;
+import com.piehouse.woorepie.agent.dto.response.GetAgentResponse;
 import com.piehouse.woorepie.agent.entity.Agent;
 import com.piehouse.woorepie.agent.repository.AgentRepository;
 import com.piehouse.woorepie.agent.service.AgentService;
@@ -106,6 +107,25 @@ public class AgentServiceImpl implements AgentService {
         } catch (CustomException e) {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
+    }
+    // agent 정보 조회
+    @Override
+    public GetAgentResponse getAgentInfo(Long agentId) {
+        Agent agent = agentRepository.findById(agentId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        return GetAgentResponse.builder()
+                .agentName(agent.getAgentName())
+                .agentPhoneNumber(agent.getAgentPhoneNumber())
+                .agentEmail(agent.getAgentEmail())
+                .agentDateOfBirth(agent.getAgentDateOfBirth())
+                .agentCertUrl(agent.getAgentCertUrl())
+                .businessName(agent.getBusinessName())
+                .businessNumber(agent.getBusinessNumber())
+                .businessAddress(agent.getBusinessAddress())
+                .businessPhoneNumber(agent.getBusinessPhoneNumber())
+                .warrantUrl(agent.getWarrantUrl())
+                .build();
     }
 
 }
