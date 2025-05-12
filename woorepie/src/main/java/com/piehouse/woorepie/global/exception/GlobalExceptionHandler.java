@@ -3,10 +3,13 @@ package com.piehouse.woorepie.global.exception;
 import com.piehouse.woorepie.global.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -25,9 +28,29 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<Void>> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
+        List<String> errors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(error -> error.getDefaultMessage())  // @NotBlank(message="...") 메시지 사용
+                .collect(Collectors.toList());
+
+        return ResponseEntity.badRequest().body(
+                new ApiResponse<>(
+                        LocalDateTime.now(),
+                        400,
+                        errors.get(0),
+                        request.getRequestURI(),
+                        null
+                )
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception ex, HttpServletRequest request) {
         ex.printStackTrace(); // 로그 출력
+
         return ResponseEntity.internalServerError().body(
                 new ApiResponse<>(
                         LocalDateTime.now(),
