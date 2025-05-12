@@ -1,12 +1,21 @@
 package com.piehouse.woorepie.notice.dto.response;
 
+import lombok.Builder;
+import lombok.Getter;
+
 import java.time.LocalDateTime;
 
-public record GetNoticeSimpleResponse(
-        Long noticeId,
-        Long estateId,
-        String estateName,
-        String noticeTitle,
-        LocalDateTime noticeDate
-) {
+@Getter
+@Builder
+public class GetNoticeSimpleResponse {
+
+    private Long noticeId;
+
+    private Long estateId;
+
+    private String estateName;
+
+    private String noticeTitle;
+
+    private LocalDateTime noticeDate;
 }

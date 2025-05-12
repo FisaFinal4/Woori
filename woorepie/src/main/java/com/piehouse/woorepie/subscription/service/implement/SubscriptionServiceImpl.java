@@ -2,7 +2,7 @@ package com.piehouse.woorepie.subscription.service.implement;
 
 import com.piehouse.woorepie.agent.entity.Agent;
 import com.piehouse.woorepie.agent.repository.AgentRepository;
-import com.piehouse.woorepie.estate.dto.RedisEstatePrice;
+import com.piehouse.woorepie.estate.entity.RedisEstatePrice;
 import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.estate.entity.EstatePrice;
 import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
@@ -69,7 +69,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         estatePriceRepository.save(estatePrice);
     }
-    //청약 매물 리스트 조회
+
+    // 청약 매물 리스트 조회
     @Override
     @Transactional(readOnly = true)
     public List<GetSubscriptionSimpleResponse> getActiveSubscriptions() {
@@ -79,20 +80,20 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             Estate estate = sub.getEstate();
             RedisEstatePrice price = estateService.getRedisEstatePrice(estate.getEstateId());
 
-            return new GetSubscriptionSimpleResponse(
-                    estate.getEstateId(),
-                    estate.getEstateName(),
-                    estate.getAgent().getAgentName(),
-                    sub.getSubDate(),
-                    estate.getEstateState(),
-                    estate.getEstateCity(),
-                    estate.getEstateImageUrl(),
-                    price.getTokenAmount(),
-                    price.getEstatePrice()
-            );
+            return GetSubscriptionSimpleResponse.builder()
+                    .estateId(estate.getEstateId())
+                    .estateName(estate.getEstateName())
+                    .agentName(estate.getAgent().getAgentName())
+                    .subStartDate(sub.getSubDate())
+                    .estateState(estate.getEstateState())
+                    .estateCity(estate.getEstateCity())
+                    .estateImageUrl(estate.getEstateImageUrl())
+                    .tokenAmount(price.getTokenAmount())
+                    .estatePrice(price.getEstatePrice())
+                    .build();
         }).collect(Collectors.toList());
     }
-    
+
     // 청약 매물 상세정보 조회
     @Override
     @Transactional(readOnly = true)
@@ -104,7 +105,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .findTopByEstate_EstateIdOrderByEstatePriceDateDesc(estateId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
-        int subTokenAmount = estate.getTokenAmount(); // 또는 다른 방식으로 설정
+        int subTokenAmount = estate.getTokenAmount();
 
         return GetSubscriptionDetailsResponse.builder()
                 .estateId(estate.getEstateId())
@@ -123,5 +124,4 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .appraisalReportUrl(estate.getAppraisalReportUrl())
                 .build();
     }
-
 }
