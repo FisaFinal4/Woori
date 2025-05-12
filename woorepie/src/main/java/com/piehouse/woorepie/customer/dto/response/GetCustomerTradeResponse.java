@@ -9,20 +9,20 @@ import java.time.LocalDateTime;
 @Getter
 @Builder
 @AllArgsConstructor
-public class GetCustomerSubscriptionResponse {
+public class GetCustomerTradeResponse {
 
-    private Long subId;
+    private Long tradeId;
 
     private Long estateId;
 
     private String estateName;
 
-    private Integer subTokenAmount;
+    private Integer tradeTokenAmount;
 
-    private Integer subTokenPrice;
+    private Integer tradeTokenPrice;
 
-    private LocalDateTime subDate;
+    private LocalDateTime tradeDate;
 
-    private short subStatus;
+    private Boolean tradeType;
 
 }

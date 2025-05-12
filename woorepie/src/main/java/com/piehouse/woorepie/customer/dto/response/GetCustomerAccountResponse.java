@@ -9,6 +9,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public class GetCustomerAccountResponse {
 
+    private Long accountId;
+
     private Long estateId;
 
     private String estateName;

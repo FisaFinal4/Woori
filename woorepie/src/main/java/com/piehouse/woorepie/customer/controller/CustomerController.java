@@ -6,6 +6,7 @@ import com.piehouse.woorepie.customer.dto.response.GetCustomerSubscriptionRespon
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerAccountResponse;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerResponse;
+import com.piehouse.woorepie.customer.dto.response.GetCustomerTradeResponse;
 import com.piehouse.woorepie.customer.service.CustomerService;
 import com.piehouse.woorepie.global.response.ApiResponse;
 import com.piehouse.woorepie.global.response.ApiResponseUtil;
@@ -52,22 +53,29 @@ public class CustomerController {
     @GetMapping
     public ResponseEntity<ApiResponse<GetCustomerResponse>> getCustomer(@AuthenticationPrincipal SessionCustomer session, HttpServletRequest request) {
         log.info("Get customer request");
-        GetCustomerResponse getCustomerResponse = customerService.getCustomer(session);
+        GetCustomerResponse getCustomerResponse = customerService.getCustomer(session.getCustomerId());
         return ApiResponseUtil.success(getCustomerResponse, request);
     }
 
     @GetMapping("/account")
     public ResponseEntity<ApiResponse<List<GetCustomerAccountResponse>>> getCustomerAccount(@AuthenticationPrincipal SessionCustomer session, HttpServletRequest request) {
         log.info("Get customer account request");
-        List<GetCustomerAccountResponse> getCustomerAccountResponseList = customerService.getCustomerAccount(session);
+        List<GetCustomerAccountResponse> getCustomerAccountResponseList = customerService.getCustomerAccount(session.getCustomerId());
         return ApiResponseUtil.success(getCustomerAccountResponseList, request);
     }
 
     @GetMapping("/subscription")
     public ResponseEntity<ApiResponse<List<GetCustomerSubscriptionResponse>>> getCustomerSubscription(@AuthenticationPrincipal SessionCustomer session, HttpServletRequest request) {
         log.info("Get customer subscription request");
-        List<GetCustomerSubscriptionResponse> getCustomerSubscriptionResponseList = customerService.getCustomerSubscription(session);
+        List<GetCustomerSubscriptionResponse> getCustomerSubscriptionResponseList = customerService.getCustomerSubscription(session.getCustomerId());
         return ApiResponseUtil.success(getCustomerSubscriptionResponseList, request);
+    }
+
+    @GetMapping("/trade")
+    public ResponseEntity<ApiResponse<List<GetCustomerTradeResponse>>> getCustomerTrade(@AuthenticationPrincipal SessionCustomer session, HttpServletRequest request) {
+        log.info("Get customer trade request");
+        List<GetCustomerTradeResponse> getCustomerTradeResponseList = customerService.getCustomerTrade(session.getCustomerId());
+        return ApiResponseUtil.success(getCustomerTradeResponseList, request);
     }
 
 }
