@@ -25,10 +25,9 @@ public class CustomerController {
     private final CustomerService customerService;
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Void>> login(@RequestBody LoginCustomerRequest dto,
-                                   HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> login(@Valid @RequestBody LoginCustomerRequest requestDto, HttpServletRequest request) {
         log.info("Login customer request");
-        customerService.customerLogin(dto, request);
+        customerService.customerLogin(requestDto, request);
         return ApiResponseUtil.success(null, request);
     }
 
@@ -40,17 +39,17 @@ public class CustomerController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<ApiResponse<Void>> createCustomer(@Valid @RequestBody CreateCustomerRequest customerRequest, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> createCustomer(@Valid @RequestBody CreateCustomerRequest requestDto, HttpServletRequest request) {
         log.info("Signing customer request");
-        customerService.createCustomer(customerRequest);
+        customerService.createCustomer(requestDto);
         return ApiResponseUtil.of(HttpStatus.CREATED,"고객 가입 성공", null, request);
     }
 
 
     @GetMapping
-    public ResponseEntity<ApiResponse<GetCustomerResponse>> getCustomer(@AuthenticationPrincipal SessionCustomer sessionCustomer, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<GetCustomerResponse>> getCustomer(@AuthenticationPrincipal SessionCustomer session, HttpServletRequest request) {
         log.info("Get customer request");
-        GetCustomerResponse getCustomerResponse = customerService.getCustomer(sessionCustomer);
+        GetCustomerResponse getCustomerResponse = customerService.getCustomer(session);
         return ApiResponseUtil.success(getCustomerResponse, request);
     }
 
