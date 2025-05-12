@@ -163,7 +163,9 @@ public class TradeServiceImpl implements TradeService {
     @Override
     public void sell(SellEstateRequest request, Long customerId) {
         Long estateId = request.getEstateId();
-        int sellAmt = request.getTradeTokenAmount();
+
+        // ✅ 입력값이 양수더라도 매도(-)기 때문에 음수로 변환해줌
+        int sellAmt = -Math.abs(request.getTradeTokenAmount());
 
         if (!isValidSellRequest(customerId, estateId, sellAmt)) {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
@@ -202,7 +204,7 @@ public class TradeServiceImpl implements TradeService {
     private int getCumulativeSellAmount(Long customerId, Long estateId) {
         System.out.println("getCumulativeSell 들어옴");
         Set<RedisEstateTradeValue> orders = redisOrderRepository.getEstateSellOrders(estateId);
-        log.info("매도 요청 누적합 계산을 위한 주문 리스트 확인", orders);
+        log.info("매도 요청 누적합 계산을 위한 주문 리스트 확인: {}", orders);
         if (orders == null || orders.isEmpty()) {
             log.info("[누적매도] 데이터없음 - estate:{}, customer:{}", estateId, customerId);
             return 0;
