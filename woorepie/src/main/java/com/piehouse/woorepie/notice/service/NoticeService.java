@@ -20,4 +20,5 @@ public interface NoticeService {
 
     // 공시 수정
     void modifyNotice(Long noticeId, ModifyNoticeRequest request, Long agentId);
+
 }
