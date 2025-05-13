@@ -1,5 +1,6 @@
 package com.piehouse.woorepie.customer.dto.response;
 
+import com.piehouse.woorepie.estate.entity.SubState;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,6 +24,6 @@ public class GetCustomerSubscriptionResponse {
 
     private LocalDateTime subDate;
 
-    private short subStatus;
+    private SubState subStatus;
 
 }
