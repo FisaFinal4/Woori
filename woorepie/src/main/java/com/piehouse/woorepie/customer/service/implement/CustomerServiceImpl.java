@@ -12,6 +12,7 @@ import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.customer.service.CustomerService;
+import com.piehouse.woorepie.estate.repository.EstateRepository;
 import com.piehouse.woorepie.estate.service.implement.EstateServiceImpl;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
@@ -47,6 +48,7 @@ public class CustomerServiceImpl implements CustomerService {
     private final CustomerRepository customerRepository;
     private final AccountRepository accountRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final EstateRepository estateRepository;
     private final TradeRepository tradeRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -240,7 +242,7 @@ public class CustomerServiceImpl implements CustomerService {
                         .subTokenAmount(subscription.getSubTokenAmount())
                         .subTokenPrice(estateServiceImpl.getRedisEstatePrice(subscription.getEstate().getEstateId()).getEstateTokenPrice() * subscription.getSubTokenAmount())
                         .subDate(subscription.getSubDate())
-//                        .subStatus(subscription.getSubState())
+                        .subStatus(subscription.getEstate().getSubState())
                         .build())
                 .toList();
 
