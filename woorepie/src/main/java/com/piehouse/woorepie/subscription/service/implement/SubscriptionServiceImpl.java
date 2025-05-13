@@ -71,28 +71,28 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
 
     // 청약 매물 리스트 조회
-    @Override
-    @Transactional(readOnly = true)
-    public List<GetSubscriptionSimpleResponse> getActiveSubscriptions() {
-        List<Subscription> subs = subscriptionRepository.findBySubState((short) 1);
-
-        return subs.stream().map(sub -> {
-            Estate estate = sub.getEstate();
-            RedisEstatePrice price = estateServiceImpl.getRedisEstatePrice(estate.getEstateId());
-
-            return GetSubscriptionSimpleResponse.builder()
-                    .estateId(estate.getEstateId())
-                    .estateName(estate.getEstateName())
-                    .agentName(estate.getAgent().getAgentName())
-                    .subStartDate(sub.getSubDate())
-                    .estateState(estate.getEstateState())
-                    .estateCity(estate.getEstateCity())
-                    .estateImageUrl(estate.getEstateImageUrl())
-                    .tokenAmount(price.getTokenAmount())
-                    .estatePrice(price.getEstatePrice())
-                    .build();
-        }).collect(Collectors.toList());
-    }
+//    @Override
+//    @Transactional(readOnly = true)
+//    public List<GetSubscriptionSimpleResponse> getActiveSubscriptions() {
+//        List<Subscription> subs = subscriptionRepository.findBySubState((short) 1);
+//
+//        return subs.stream().map(sub -> {
+//            Estate estate = sub.getEstate();
+//            RedisEstatePrice price = estateServiceImpl.getRedisEstatePrice(estate.getEstateId());
+//
+//            return GetSubscriptionSimpleResponse.builder()
+//                    .estateId(estate.getEstateId())
+//                    .estateName(estate.getEstateName())
+//                    .agentName(estate.getAgent().getAgentName())
+//                    .subStartDate(sub.getSubDate())
+//                    .estateState(estate.getEstateState())
+//                    .estateCity(estate.getEstateCity())
+//                    .estateImageUrl(estate.getEstateImageUrl())
+//                    .tokenAmount(price.getTokenAmount())
+//                    .estatePrice(price.getEstatePrice())
+//                    .build();
+//        }).collect(Collectors.toList());
+//    }
 
     // 청약 매물 상세정보 조회
     @Override

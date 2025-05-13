@@ -39,13 +39,13 @@ public class SubscriptionController {
     /**
      * 청약중인 매물 리스트 조회
      */
-    @GetMapping("/list")
-    public ResponseEntity<ApiResponse<List<GetSubscriptionSimpleResponse>>> getAllSubscriptionEstates(
-            HttpServletRequest request
-    ) {
-        List<GetSubscriptionSimpleResponse> responseList = subscriptionService.getActiveSubscriptions();
-        return ApiResponseUtil.success(responseList, request);
-    }
+//    @GetMapping("/list")
+//    public ResponseEntity<ApiResponse<List<GetSubscriptionSimpleResponse>>> getAllSubscriptionEstates(
+//            HttpServletRequest request
+//    ) {
+//        List<GetSubscriptionSimpleResponse> responseList = subscriptionService.getActiveSubscriptions();
+//        return ApiResponseUtil.success(responseList, request);
+//    }
 
     /**
      * 청약 매물 상세 조회
@@ -58,4 +58,5 @@ public class SubscriptionController {
         GetSubscriptionDetailsResponse response = subscriptionService.getSubscriptionDetails(estateId);
         return ApiResponseUtil.success(response, request);
     }
+
 }
