@@ -5,6 +5,7 @@ import com.piehouse.woorepie.agent.repository.AgentRepository;
 import com.piehouse.woorepie.estate.dto.RedisEstatePrice;
 import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.estate.entity.EstatePrice;
+import com.piehouse.woorepie.estate.entity.SubState;
 import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
 import com.piehouse.woorepie.estate.repository.EstateRepository;
 import com.piehouse.woorepie.estate.service.implement.EstateServiceImpl;
@@ -69,30 +70,34 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         estatePriceRepository.save(estatePrice);
     }
+    
+    //청약 가능한 매물 리스트 조회
+    @Override
+    @Transactional(readOnly = true)
+    public List<GetSubscriptionSimpleResponse> getActiveSubscriptions() {
+        List<Estate> estates = estateRepository.findBySubStateIn(List.of(
+                SubState.READY, SubState.RUNNING, SubState.PENDING, SubState.FAILURE
+        )); // ✅ 청약 중인 substate 필터링
 
-    // 청약 매물 리스트 조회
-//    @Override
-//    @Transactional(readOnly = true)
-//    public List<GetSubscriptionSimpleResponse> getActiveSubscriptions() {
-//        List<Subscription> subs = subscriptionRepository.findBySubState((short) 1);
-//
-//        return subs.stream().map(sub -> {
-//            Estate estate = sub.getEstate();
-//            RedisEstatePrice price = estateServiceImpl.getRedisEstatePrice(estate.getEstateId());
-//
-//            return GetSubscriptionSimpleResponse.builder()
-//                    .estateId(estate.getEstateId())
-//                    .estateName(estate.getEstateName())
-//                    .agentName(estate.getAgent().getAgentName())
-//                    .subStartDate(sub.getSubDate())
-//                    .estateState(estate.getEstateState())
-//                    .estateCity(estate.getEstateCity())
-//                    .estateImageUrl(estate.getEstateImageUrl())
-//                    .tokenAmount(price.getTokenAmount())
-//                    .estatePrice(price.getEstatePrice())
-//                    .build();
-//        }).collect(Collectors.toList());
-//    }
+        return estates.stream()
+                .map(estate -> {
+                    RedisEstatePrice price = estateServiceImpl.getRedisEstatePrice(estate.getEstateId());
+
+                    return GetSubscriptionSimpleResponse.builder()
+                            .estateId(estate.getEstateId())
+                            .estateName(estate.getEstateName())
+                            .agentName(estate.getAgent().getAgentName())
+                            .subStartDate(estate.getSubStartDate())
+                            .estateState(estate.getEstateState())
+                            .estateCity(estate.getEstateCity())
+                            .estateImageUrl(estate.getEstateImageUrl())
+                            .tokenAmount(price.getTokenAmount())
+                            .estatePrice(price.getEstatePrice())
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
 
     // 청약 매물 상세정보 조회
     @Override
