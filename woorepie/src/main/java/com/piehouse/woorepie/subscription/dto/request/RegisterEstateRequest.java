@@ -3,6 +3,8 @@ package com.piehouse.woorepie.subscription.dto.request;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 public class RegisterEstateRequest {
@@ -21,4 +23,5 @@ public class RegisterEstateRequest {
     private String investmentExplanationUrl;
     private String propertyMngContractUrl;
     private String appraisalReportUrl;
+    private BigDecimal dividendYield;
 }
