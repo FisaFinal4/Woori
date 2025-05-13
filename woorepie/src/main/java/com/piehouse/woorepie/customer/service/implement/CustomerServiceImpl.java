@@ -223,6 +223,8 @@ public class CustomerServiceImpl implements CustomerService {
                         .estateName(account.getEstate().getEstateName())
                         .accountTokenAmount(account.getAccountTokenAmount())
                         .accountTokenPrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getEstateTokenPrice() * account.getAccountTokenAmount())
+                        .estateTokenPrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getEstateTokenPrice())
+                        .recentEstatePrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getDividendYield())
                         .build())
                 .toList();
 
@@ -262,7 +264,7 @@ public class CustomerServiceImpl implements CustomerService {
                         .tradeTokenAmount(trade.getTradeTokenAmount())
                         .tradeTokenPrice(estateServiceImpl.getRedisEstatePrice(trade.getEstate().getEstateId()).getEstateTokenPrice() * trade.getTradeTokenAmount())
                         .tradeDate(trade.getTradeDate())
-                        .tradeType(false)
+                        .tradeType("매수")
                         .build())
                 .toList();
 
@@ -276,7 +278,7 @@ public class CustomerServiceImpl implements CustomerService {
                         .tradeTokenAmount(trade.getTradeTokenAmount())
                         .tradeTokenPrice(estateServiceImpl.getRedisEstatePrice(trade.getEstate().getEstateId()).getEstateTokenPrice() * trade.getTradeTokenAmount())
                         .tradeDate(trade.getTradeDate())
-                        .tradeType(true)
+                        .tradeType("매도")
                         .build())
                 .toList();
 

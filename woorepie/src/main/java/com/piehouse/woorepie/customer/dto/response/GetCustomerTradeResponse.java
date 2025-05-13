@@ -23,6 +23,6 @@ public class GetCustomerTradeResponse {
 
     private LocalDateTime tradeDate;
 
-    private Boolean tradeType;
+    private String tradeType;
 
 }
