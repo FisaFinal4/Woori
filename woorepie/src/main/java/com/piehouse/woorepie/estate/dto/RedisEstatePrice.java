@@ -13,4 +13,6 @@ public class RedisEstatePrice {
 
     private Integer tokenAmount;
 
+    private Integer dividendYield;
+
 }

@@ -91,13 +91,7 @@ public class Estate {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private SubState subState;
-
-    @Column(nullable = false)
-    private Integer dividendYield;
-
-    @Column(nullable = false)
-    private Integer recentEstate_Price;
+    private SubState subState = SubState.READY;
 
     // 매물 정보 수정
     public Estate updateDescription(String newDescription) {

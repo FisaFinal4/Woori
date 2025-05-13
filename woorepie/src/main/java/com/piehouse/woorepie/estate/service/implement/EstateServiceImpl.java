@@ -5,8 +5,11 @@ import com.piehouse.woorepie.estate.dto.RedisEstatePrice;
 import com.piehouse.woorepie.estate.dto.response.GetEstateDetailsResponse;
 import com.piehouse.woorepie.estate.dto.response.GetEstatePriceResponse;
 import com.piehouse.woorepie.estate.dto.response.GetEstateSimpleResponse;
+import com.piehouse.woorepie.estate.entity.DividendYield;
 import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.estate.entity.EstatePrice;
+import com.piehouse.woorepie.estate.entity.SubState;
+import com.piehouse.woorepie.estate.repository.DividendYieldRepository;
 import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
 import com.piehouse.woorepie.estate.repository.EstateRepository;
 import com.piehouse.woorepie.estate.service.EstateService;
@@ -18,6 +21,7 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -29,15 +33,14 @@ public class EstateServiceImpl implements EstateService {
     private final RedisTemplate<String, Object> redisObjectTemplate;
     private final EstateRepository estateRepository;
     private final EstatePriceRepository estatePriceRepository;
+    private final DividendYieldRepository dividendYieldRepository;
     private static final String REDIS_ESTATE_PRICE_KEY_PREFIX = "estate:price:";
 
     @Override
     public List<GetEstateSimpleResponse> getTradableEstates() {
-        List<Estate> estates = estateRepository.findAll();
-        LocalDateTime now = LocalDateTime.now();
+        List<Estate> estates = estateRepository.findBySubState(SubState.SUCCESS); // ✅ 상태 필터 추가
 
         return estates.stream()
-                .filter(e -> e.getSubEndDate() != null && e.getSubEndDate().isBefore(now))
                 .map(estate -> {
                     Long estateId = estate.getEstateId();
                     RedisEstatePrice price = getRedisEstatePrice(estateId);
@@ -53,6 +56,7 @@ public class EstateServiceImpl implements EstateService {
                 })
                 .collect(Collectors.toList());
     }
+
 
     @Override
     public GetEstateDetailsResponse getTradableEstateDetails(Long estateId) {
@@ -113,7 +117,6 @@ public class EstateServiceImpl implements EstateService {
 
     // 레디스에서 매물 현재 시세 가져오기
     public RedisEstatePrice getRedisEstatePrice(Long estateId) {
-
         String key = REDIS_ESTATE_PRICE_KEY_PREFIX + estateId;
         ValueOperations<String, Object> ops = redisObjectTemplate.opsForValue();
 
@@ -122,6 +125,7 @@ public class EstateServiceImpl implements EstateService {
             return price;
         }
 
+        // 1. 매물 & 시세 조회
         Estate estate = estateRepository.findById(estateId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
@@ -133,15 +137,24 @@ public class EstateServiceImpl implements EstateService {
         int estatePrice = latest.getEstatePrice();
         int estateTokenPrice = tokenCount != 0 ? estatePrice / tokenCount : 0;
 
+        // 2. 최신 배당수익률 조회
+        BigDecimal dividend = dividendYieldRepository
+                .findTopByEstate_EstateIdOrderByDividendYieldDateDesc(estateId)
+                .map(DividendYield::getDividendYield)
+                .orElse(BigDecimal.ZERO);  // 수익률 정보 없으면 0 처리
+
+        // 3. Redis 저장 객체 생성
         RedisEstatePrice rep = RedisEstatePrice.builder()
                 .estatePrice(estatePrice)
                 .estateTokenPrice(estateTokenPrice)
                 .tokenAmount(tokenCount)
+                .dividendYield(dividend.intValue())  // Integer로 변환
                 .build();
 
-        ops.set(key, rep); // 캐싱
+        // 4. Redis 캐싱 후 반환
+        ops.set(key, rep);
         return rep;
-
     }
+
 
 }
