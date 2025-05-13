@@ -52,12 +52,13 @@ public class TradeController {
      * 청약 신청 (고객 로그인 필요)
      */
     @PostMapping("/subscription")
-    public ResponseEntity<ApiResponse<String>> subscribe(
+    public ResponseEntity<ApiResponse<Integer>> subscribe(
             @RequestBody @Valid CreateSubscriptionTradeRequest request,
             @AuthenticationPrincipal SessionCustomer sessionCustomer,
             HttpServletRequest httpRequest
     ) {
-        tradeService.createSubscription(request, sessionCustomer.getCustomerId());
-        return ApiResponseUtil.of(HttpStatus.CREATED, "청약 성공", null, httpRequest);
+        // 청약 처리 후 남은 토큰 수량 반환
+        int remainingTokens = tradeService.createSubscription(request, sessionCustomer.getCustomerId());
+        return ApiResponseUtil.of(HttpStatus.CREATED, "청약 성공", remainingTokens, httpRequest);
     }
 }

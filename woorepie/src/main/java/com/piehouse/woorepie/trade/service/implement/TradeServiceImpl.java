@@ -14,6 +14,7 @@ import com.piehouse.woorepie.global.kafka.dto.SubscriptionRequestEvent;
 import com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent;
 import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
 import com.piehouse.woorepie.global.kafka.service.KafkaProducerService;
+import com.piehouse.woorepie.subscription.entity.Subscription;
 import com.piehouse.woorepie.trade.dto.request.*;
 import com.piehouse.woorepie.trade.entity.Trade;
 import com.piehouse.woorepie.trade.repository.RedisTradeRepository;
@@ -21,9 +22,12 @@ import com.piehouse.woorepie.trade.repository.TradeRepository;
 import com.piehouse.woorepie.trade.service.TradeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import com.piehouse.woorepie.subscription.repository.SubscriptionRepository;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -43,6 +47,9 @@ public class TradeServiceImpl implements TradeService {
     private final EstatePriceRepository estatePriceRepository;
     private final EstateRepository estateRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final StringRedisTemplate redisTemplate;
+    private final PlatformTransactionManager transactionManager;
+    private static final String REMAINING_TOKENS_KEY_FORMAT = "subscription:%s:remaining-tokens";
 
     @Override
     @Transactional
@@ -225,7 +232,7 @@ public class TradeServiceImpl implements TradeService {
     // 청약 신청
     @Override
     @Transactional
-    public void createSubscription(CreateSubscriptionTradeRequest request, Long customerId) {
+    public int createSubscription(CreateSubscriptionTradeRequest request, Long customerId) {
         Long estateId = request.getEstateId();
         int requestAmount = request.getSubAmount();
 
@@ -274,6 +281,57 @@ public class TradeServiceImpl implements TradeService {
                         .subscribeDate(LocalDateTime.now())
                         .build()
         );
+        return requestAmount;
+    }
+
+    // 청약 신청 처리 로직
+    @Transactional
+    public void processSubscription(Long estateId, Long customerId, int requestedAmount, int tokenPrice) {
+        // 1. Redis 트랜잭션 시작
+        String redisKey = String.format(REMAINING_TOKENS_KEY_FORMAT, estateId);
+        Long newRemaining = redisTemplate.opsForValue().decrement(redisKey, requestedAmount);
+
+        if (newRemaining == null || newRemaining < 0) {
+            redisTemplate.opsForValue().increment(redisKey, requestedAmount);
+            throw new CustomException(ErrorCode.TOKEN_INSUFFICIENT);
+        }
+
+        try {
+            // 2. PostgreSQL 트랜잭션 시작 (내부)
+            executeInTransaction(() -> {
+                Estate estate = estateRepository.findById(estateId)
+                        .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
+
+                Customer customer = customerRepository.findById(customerId)
+                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+                // 청약 저장
+                Subscription subscription = Subscription.builder()
+                        .estate(estate) // 실제 엔티티 주입
+                        .customer(customer) // 실제 엔티티 주입
+                        .subTokenAmount(requestedAmount)
+                        .build(); // subDate는 @CreationTimestamp로 자동 처리
+
+                subscriptionRepository.save(subscription);
+
+                // 고객 계좌 업데이트
+                int totalPrice = requestedAmount * tokenPrice;
+                customer.decreaseBalance(totalPrice); // 보유한 계좌에서 감소
+                customerRepository.save(customer);
+            });
+        } catch (Exception e) {
+            // PostgreSQL 트랜잭션 실패 → Redis 롤백
+            redisTemplate.opsForValue().increment(redisKey, requestedAmount);
+            throw e;
+        }
+    }
+
+    private void executeInTransaction(Runnable action) {
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        transactionTemplate.execute(status -> {
+            action.run();
+            return null;
+        });
     }
 }
 

@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class SubscriptionRequestEvent {
     private Long customerId;
     private Long estateId;
+    private Integer tokenPrice;
     private Integer amount;
     private LocalDateTime subscribeDate;
 }
