@@ -5,13 +5,15 @@ import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.estate.entity.Estate;
+import com.piehouse.woorepie.estate.entity.EstatePrice;
+import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
 import com.piehouse.woorepie.estate.repository.EstateRepository;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
+import com.piehouse.woorepie.global.kafka.dto.SubscriptionRequestEvent;
 import com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent;
 import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
 import com.piehouse.woorepie.global.kafka.service.KafkaProducerService;
-import com.piehouse.woorepie.subscription.entity.Subscription;
 import com.piehouse.woorepie.trade.dto.request.*;
 import com.piehouse.woorepie.trade.entity.Trade;
 import com.piehouse.woorepie.trade.repository.RedisTradeRepository;
@@ -38,6 +40,7 @@ public class TradeServiceImpl implements TradeService {
     private final CustomerRepository customerRepository;
     private final RedisTradeRepository redisOrderRepository;
     private final KafkaProducerService kafkaProducerService;
+    private final EstatePriceRepository estatePriceRepository;
     private final EstateRepository estateRepository;
     private final SubscriptionRepository subscriptionRepository;
 
@@ -221,19 +224,56 @@ public class TradeServiceImpl implements TradeService {
 
     // 청약 신청
     @Override
+    @Transactional
     public void createSubscription(CreateSubscriptionTradeRequest request, Long customerId) {
-        Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        Long estateId = request.getEstateId();
+        int requestAmount = request.getSubAmount();
 
-        Estate estate = estateRepository.findById(request.getEstateId())
-                .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+        log.info("[1단계] 청약 신청 시작 - customerId: {}, estateId: {}, 신청수량: {}",
+                customerId, estateId, requestAmount);
 
-        Subscription subscription = Subscription.builder()
-                .customer(customer)
-                .estate(estate)
-                .subTokenAmount(request.getSubAmount())
-                .build();
+        // Redis 스킵 → 이후 구현 예정
 
-        subscriptionRepository.save(subscription);
+        // 2단계: PostgreSQL에서 계좌 조회
+        Account account = accountRepository.findByCustomer_CustomerIdAndEstate_EstateId(customerId, estateId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NON_EXIST));
+
+        Estate estate = account.getEstate();  // Account → Estate 연결
+
+        // 3단계: EstatePrice에서 최신 시세 조회
+        EstatePrice latestPrice = estatePriceRepository
+                .findTopByEstate_EstateIdOrderByEstatePriceDateDesc(estateId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
+
+        int estatePriceValue = latestPrice.getEstatePrice();
+        int tokenAmount = estate.getTokenAmount();
+
+        if (tokenAmount == 0) {
+            throw new CustomException(ErrorCode.INTERNAL_ERROR); // 0으로 나눌 수 없음
+        }
+
+        // 4단계: 토큰당 가격 계산 및 청약금액 계산
+        int tokenPrice = estatePriceValue / tokenAmount;
+        int requiredCash = requestAmount * tokenPrice;
+        int userBalance = account.getTotalAccountAmount();
+
+        log.info("[2단계] 토큰당 가격 계산 완료 - 총 시세: {}, 총 토큰수: {}, 토큰가격: {}",
+                estatePriceValue, tokenAmount, tokenPrice);
+        log.info("[3단계] 고객 잔액: {}, 청약필요금액: {}", userBalance, requiredCash);
+
+        if (userBalance < requiredCash) {
+            throw new CustomException(ErrorCode.INSUFFICIENT_CASH);
+        }
+
+        // 5단계: Kafka 메시지 전송
+        kafkaProducerService.sendSubscriptionRequest(
+                SubscriptionRequestEvent.builder()
+                        .customerId(customerId)
+                        .estateId(estateId)
+                        .amount(requestAmount)
+                        .subscribeDate(LocalDateTime.now())
+                        .build()
+        );
     }
 }
+

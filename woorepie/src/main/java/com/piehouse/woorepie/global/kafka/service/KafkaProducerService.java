@@ -1,8 +1,11 @@
 package com.piehouse.woorepie.global.kafka.service;
 
 import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
+import com.piehouse.woorepie.global.kafka.dto.SubscriptionRequestEvent;
 import com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent;
 import com.piehouse.woorepie.global.kafka.dto.CustomerCreatedEvent;
+
+import java.time.LocalDateTime;
 
 public interface KafkaProducerService {
 
@@ -12,7 +15,9 @@ public interface KafkaProducerService {
 
     void sendCustomerCreated(CustomerCreatedEvent event); // 회원가입 완료 이벤트
 
-//    void sendSubscriptionCreated(SubscriptionCreatedEvent event); // 청약 완료 이벤트
+    // KafkaProducerService.java
+    void sendSubscriptionRequest(SubscriptionRequestEvent event);
+
 
 }
 
