@@ -3,9 +3,11 @@ package com.piehouse.woorepie.subscription.service.implement;
 import com.piehouse.woorepie.agent.entity.Agent;
 import com.piehouse.woorepie.agent.repository.AgentRepository;
 import com.piehouse.woorepie.estate.dto.RedisEstatePrice;
+import com.piehouse.woorepie.estate.entity.DividendYield;
 import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.estate.entity.EstatePrice;
 import com.piehouse.woorepie.estate.entity.SubState;
+import com.piehouse.woorepie.estate.repository.DividendYieldRepository;
 import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
 import com.piehouse.woorepie.estate.repository.EstateRepository;
 import com.piehouse.woorepie.estate.service.implement.EstateServiceImpl;
@@ -34,6 +36,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final AgentRepository agentRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final EstateServiceImpl estateServiceImpl;
+    private final DividendYieldRepository dividendYieldRepository;
+
 
     @Override
     @Transactional
@@ -61,7 +65,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .build();
 
         estateRepository.save(estate);
-
+    //매물 시세 테이블..
         EstatePrice estatePrice = EstatePrice.builder()
                 .estate(estate)
                 .estatePrice(request.getEstatePrice())
@@ -69,6 +73,15 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .build();
 
         estatePriceRepository.save(estatePrice);
+
+    //배당률 테이블도 함께 저장...
+        DividendYield dividendYield = DividendYield.builder()
+                .estate(estate)
+                .dividendYield(request.getDividendYield())
+                .dividendYieldDate(LocalDateTime.now())
+                .build();
+
+        dividendYieldRepository.save(dividendYield);
     }
     
     //청약 가능한 매물 리스트 조회
