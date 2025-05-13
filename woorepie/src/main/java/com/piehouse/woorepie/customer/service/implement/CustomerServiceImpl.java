@@ -240,7 +240,7 @@ public class CustomerServiceImpl implements CustomerService {
                         .subTokenAmount(subscription.getSubTokenAmount())
                         .subTokenPrice(estateServiceImpl.getRedisEstatePrice(subscription.getEstate().getEstateId()).getEstateTokenPrice() * subscription.getSubTokenAmount())
                         .subDate(subscription.getSubDate())
-                        .subStatus(subscription.getSubState())
+//                        .subStatus(subscription.getSubState())
                         .build())
                 .toList();
 

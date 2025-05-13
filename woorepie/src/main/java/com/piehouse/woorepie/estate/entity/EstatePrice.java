@@ -2,6 +2,7 @@ package com.piehouse.woorepie.estate.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -27,7 +28,8 @@ public class EstatePrice {
     @Column(nullable = false)
     private Integer estatePrice;
 
-    @Column(nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    @CreationTimestamp
+    @Column(updatable = false)
     private LocalDateTime estatePriceDate;
 
 }

@@ -11,7 +11,7 @@ public interface SubscriptionService {
     void registerEstate(RegisterEstateRequest request, Long agentId);
 
     //청약 매물 리스트 조회
-    List<GetSubscriptionSimpleResponse> getActiveSubscriptions();
+//    List<GetSubscriptionSimpleResponse> getActiveSubscriptions();
     
     //청약 매물 상세정보 조회
     GetSubscriptionDetailsResponse getSubscriptionDetails(Long estateId);
