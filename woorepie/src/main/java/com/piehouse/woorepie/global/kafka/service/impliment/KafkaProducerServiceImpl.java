@@ -1,6 +1,7 @@
 package com.piehouse.woorepie.global.kafka.service.impliment;
 
 import com.piehouse.woorepie.global.kafka.dto.CustomerCreatedEvent;
+import com.piehouse.woorepie.global.kafka.dto.SubscriptionRequestEvent;
 import com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent;
 import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
 import com.piehouse.woorepie.global.kafka.service.KafkaProducerService;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import java.time.LocalDateTime;
 
 @Slf4j
 @Service
@@ -20,6 +22,7 @@ public class KafkaProducerServiceImpl implements KafkaProducerService {
     private static final String ORDER_CREATED_TOPIC = "order.created";
     private static final String TRANSACTION_CREATED_TOPIC = "transaction.created";
     private static final String CUSTOMER_CREATED_TOPIC = "customer.created";
+    private static final String SUBSCRIPTION_REQUEST_TOPIC = "subscription.request";
 
     // Kafka에 매수, 매도 요청 이벤트 보내기
     @Override
@@ -50,5 +53,13 @@ public class KafkaProducerServiceImpl implements KafkaProducerService {
                     }
                 });
     }
+
+    @Override
+    public void sendSubscriptionRequest(SubscriptionRequestEvent event) {
+        send(SUBSCRIPTION_REQUEST_TOPIC, event); // 공통 send() 사용
+    }
+
+
+
 
 }
