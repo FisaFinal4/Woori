@@ -16,6 +16,8 @@ public interface CustomerService {
 
     void customerLogout(HttpServletRequest request);
 
+    Boolean checkCustomerEmail(String customerEmail);
+
     void createCustomer(CreateCustomerRequest requestDto);
 
     GetCustomerResponse getCustomer(Long customerId);

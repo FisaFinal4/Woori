@@ -106,6 +106,18 @@ public class CustomerServiceImpl implements CustomerService {
 
     }
 
+    //이메일 중복 확인
+    @Override
+    public Boolean checkCustomerEmail(String customerEmail) {
+
+        if (customerRepository.existsByCustomerEmail(customerEmail)) {
+            throw new CustomException(ErrorCode.ALREADY_REGISTERED_EMAIL);
+        }
+
+        return true;
+
+    }
+
     // 회원가입
     @Override
     @Transactional
@@ -143,7 +155,7 @@ public class CustomerServiceImpl implements CustomerService {
 
         do {
             if (attempt++ > maxAttempts) {
-                throw new IllegalStateException("계좌번호 생성 실패: 중복 발생");
+                throw new CustomException(ErrorCode.ACCOUNT_NUMBER_DUPLICATED);
             }
             accountNumber = generateRandomDigits();
         } while (customerRepository.existsByAccountNumber(accountNumber));
@@ -202,7 +214,7 @@ public class CustomerServiceImpl implements CustomerService {
 
         List<Account> accounts = accountRepository.findByCustomer_CustomerId(customerId);
 
-        List<GetCustomerAccountResponse> accountResponses = accounts.stream()
+        return accounts.stream()
                 .map(account -> GetCustomerAccountResponse.builder()
                         .accountId(account.getAccountId())
                         .estateId(account.getEstate().getEstateId())
@@ -210,9 +222,7 @@ public class CustomerServiceImpl implements CustomerService {
                         .accountTokenAmount(account.getAccountTokenAmount())
                         .accountTokenPrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getEstateTokenPrice() * account.getAccountTokenAmount())
                         .build())
-                .collect(Collectors.toList());
-
-        return accountResponses;
+                .toList();
 
     }
 
@@ -222,7 +232,7 @@ public class CustomerServiceImpl implements CustomerService {
 
         List<Subscription> subscriptions = subscriptionRepository.findByCustomer_CustomerId(customerId);
 
-        List<GetCustomerSubscriptionResponse> subscriptionResponses = subscriptions.stream()
+        return subscriptions.stream()
                 .map(subscription -> GetCustomerSubscriptionResponse.builder()
                         .subId(subscription.getSubId())
                         .estateId(subscription.getEstate().getEstateId())
@@ -232,9 +242,7 @@ public class CustomerServiceImpl implements CustomerService {
                         .subDate(subscription.getSubDate())
                         .subStatus(subscription.getSubState())
                         .build())
-                .collect(Collectors.toList());
-
-        return subscriptionResponses;
+                .toList();
 
     }
 
@@ -254,7 +262,7 @@ public class CustomerServiceImpl implements CustomerService {
                         .tradeDate(trade.getTradeDate())
                         .tradeType(false)
                         .build())
-                .collect(Collectors.toList());
+                .toList();
 
         // Buyer 거래
         List<GetCustomerTradeResponse> buyerTrades = tradeRepository.findByBuyer_CustomerId(customerId)
@@ -268,12 +276,12 @@ public class CustomerServiceImpl implements CustomerService {
                         .tradeDate(trade.getTradeDate())
                         .tradeType(true)
                         .build())
-                .collect(Collectors.toList());
+                .toList();
 
         // 두 리스트 합치기
         List<GetCustomerTradeResponse> tradeResponses = Stream.concat(sellerTrades.stream(), buyerTrades.stream())
                 .sorted(Comparator.comparing(GetCustomerTradeResponse::getTradeDate).reversed()) // 최신순 정렬
-                .collect(Collectors.toList());
+                .toList();
 
         return tradeResponses;
 
