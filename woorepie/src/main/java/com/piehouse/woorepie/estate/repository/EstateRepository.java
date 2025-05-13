@@ -9,10 +9,11 @@ import java.util.List;
 
 @Repository
 public interface EstateRepository extends JpaRepository<Estate, Long> {
-
+    
+    Optional<Integer> findTokenAmountByEstateId(Long estateId);
+    
     List<Estate> findBySubState(SubState subState);
 
     List<Estate> findBySubStateIn(List<SubState> subStates);
-
 
 }
