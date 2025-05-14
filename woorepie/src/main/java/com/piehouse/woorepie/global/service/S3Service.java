@@ -6,6 +6,8 @@ import java.util.List;
 
 public interface S3Service {
 
+    String getPublicS3Url(String key);
+
     S3UrlResponse generateCustomerPresignedUrl(String domain, String customerEmail);
 
     List<S3UrlResponse> generateAgentPresignedUrl(String domain, String agentEmail);

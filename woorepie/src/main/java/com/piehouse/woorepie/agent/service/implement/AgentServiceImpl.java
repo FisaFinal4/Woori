@@ -9,6 +9,7 @@ import com.piehouse.woorepie.agent.repository.AgentRepository;
 import com.piehouse.woorepie.agent.service.AgentService;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
+import com.piehouse.woorepie.global.service.implement.S3ServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class AgentServiceImpl implements AgentService {
 
     private final AgentRepository agentRepository;
     private final PasswordEncoder passwordEncoder;
+    private final S3ServiceImpl s3Service;
 
     @Override
     public void loginAgent(LoginAgentRequest agentRequest, HttpServletRequest request) {
@@ -94,13 +96,13 @@ public class AgentServiceImpl implements AgentService {
                     .agentPassword(passwordEncoder.encode(agentRequest.getAgentPassword()))
                     .agentPhoneNumber(agentRequest.getAgentPhoneNumber())
                     .agentDateOfBirth(agentRequest.getAgentDateOfBirth())
-                    .agentIdentificationUrl(agentRequest.getAgentIdentificationUrl())
-                    .agentCertUrl(agentRequest.getAgentCertUrl())
+                    .agentIdentificationUrl(s3Service.getPublicS3Url(agentRequest.getAgentIdentificationUrlKey()))
+                    .agentCertUrl(s3Service.getPublicS3Url(agentRequest.getAgentCertUrlKey()))
                     .businessName(agentRequest.getBusinessName())
                     .businessNumber(agentRequest.getBusinessNumber())
                     .businessPhoneNumber(agentRequest.getBusinessPhoneNumber())
                     .businessAddress(agentRequest.getBusinessAddress())
-                    .warrantUrl(agentRequest.getWarrantUrl())
+                    .warrantUrl(s3Service.getPublicS3Url(agentRequest.getWarrantUrlKey()))
                     .agentKyc(UUID.randomUUID().toString())
                     .build();
             agentRepository.save(agent);

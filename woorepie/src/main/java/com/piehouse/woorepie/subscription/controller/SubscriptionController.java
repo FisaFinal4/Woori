@@ -8,6 +8,7 @@ import com.piehouse.woorepie.subscription.dto.response.GetSubscriptionDetailsRes
 import com.piehouse.woorepie.subscription.dto.response.GetSubscriptionSimpleResponse;
 import com.piehouse.woorepie.subscription.service.SubscriptionService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,13 +24,10 @@ public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
 
-    /**
-     * 청약 매물 등록 (중개인 로그인 필요)
-     */
     @PostMapping("/create")
     public ResponseEntity<ApiResponse<String>> registerEstate(
+            @Valid @AuthenticationPrincipal SessionAgent sessionAgent,
             @RequestBody RegisterEstateRequest request,
-            @AuthenticationPrincipal SessionAgent sessionAgent,
             HttpServletRequest httpRequest
     ) {
         subscriptionService.registerEstate(request, sessionAgent.getAgentId());

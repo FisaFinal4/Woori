@@ -12,12 +12,12 @@ import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.customer.service.CustomerService;
-import com.piehouse.woorepie.estate.repository.EstateRepository;
-import com.piehouse.woorepie.estate.service.implement.EstateServiceImpl;
+import com.piehouse.woorepie.estate.service.implement.EstateRedisServiceImpl;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.global.kafka.dto.CustomerCreatedEvent;
 import com.piehouse.woorepie.global.kafka.service.impliment.KafkaProducerServiceImpl;
+import com.piehouse.woorepie.global.service.implement.S3ServiceImpl;
 import com.piehouse.woorepie.subscription.entity.Subscription;
 import com.piehouse.woorepie.subscription.repository.SubscriptionRepository;
 import com.piehouse.woorepie.trade.repository.TradeRepository;
@@ -38,7 +38,6 @@ import java.security.SecureRandom;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -48,12 +47,12 @@ public class CustomerServiceImpl implements CustomerService {
     private final CustomerRepository customerRepository;
     private final AccountRepository accountRepository;
     private final SubscriptionRepository subscriptionRepository;
-    private final EstateRepository estateRepository;
     private final TradeRepository tradeRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
-    private final EstateServiceImpl estateServiceImpl;
+    private final EstateRedisServiceImpl estateRedisServiceImpl;
     private final KafkaProducerServiceImpl kafkaProducerServiceImpl;
+    private final S3ServiceImpl s3ServiceImpl;
     private static final int ACCOUNT_NUMBER_LENGTH = 15;
 
     // 로그인
@@ -139,7 +138,7 @@ public class CustomerServiceImpl implements CustomerService {
                 .customerDateOfBirth(requestDto.getCustomerDateOfBirth())
                 .accountNumber(generateUniqueAccountNumber())
                 .customerKyc(UUID.randomUUID().toString())
-                .customerIdentificationUrl(requestDto.getCustomerIdentificationUrl())
+                .customerIdentificationUrl(s3ServiceImpl.getPublicS3Url(requestDto.getCustomerIdentificationUrlKey()))
                 .build();
         customerRepository.save(customer);
 
@@ -192,7 +191,7 @@ public class CustomerServiceImpl implements CustomerService {
         int totalAccountTokenPrice = accounts.stream()
                 .mapToInt(account ->
                         account.getAccountTokenAmount()
-                                * estateServiceImpl
+                                * estateRedisServiceImpl
                                 .getRedisEstatePrice(account.getEstate().getEstateId())
                                 .getEstateTokenPrice()
                 )
@@ -222,9 +221,9 @@ public class CustomerServiceImpl implements CustomerService {
                         .estateId(account.getEstate().getEstateId())
                         .estateName(account.getEstate().getEstateName())
                         .accountTokenAmount(account.getAccountTokenAmount())
-                        .accountTokenPrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getEstateTokenPrice() * account.getAccountTokenAmount())
-                        .estateTokenPrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getEstateTokenPrice())
-                        .estatePrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getDividendYield())
+                        .accountTokenPrice(estateRedisServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getEstateTokenPrice() * account.getAccountTokenAmount())
+                        .estateTokenPrice(estateRedisServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getEstateTokenPrice())
+                        .estatePrice(estateRedisServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getDividendYield())
                         .build())
                 .toList();
 
@@ -242,7 +241,7 @@ public class CustomerServiceImpl implements CustomerService {
                         .estateId(subscription.getEstate().getEstateId())
                         .estateName(subscription.getEstate().getEstateName())
                         .subTokenAmount(subscription.getSubTokenAmount())
-                        .subTokenPrice(estateServiceImpl.getRedisEstatePrice(subscription.getEstate().getEstateId()).getEstateTokenPrice() * subscription.getSubTokenAmount())
+                        .subTokenPrice(estateRedisServiceImpl.getRedisEstatePrice(subscription.getEstate().getEstateId()).getEstateTokenPrice() * subscription.getSubTokenAmount())
                         .subDate(subscription.getSubDate())
                         .subStatus(subscription.getEstate().getSubState())
                         .build())
@@ -262,7 +261,7 @@ public class CustomerServiceImpl implements CustomerService {
                         .estateId(trade.getEstate().getEstateId())
                         .estateName(trade.getEstate().getEstateName())
                         .tradeTokenAmount(trade.getTradeTokenAmount())
-                        .tradeTokenPrice(estateServiceImpl.getRedisEstatePrice(trade.getEstate().getEstateId()).getEstateTokenPrice() * trade.getTradeTokenAmount())
+                        .tradeTokenPrice(estateRedisServiceImpl.getRedisEstatePrice(trade.getEstate().getEstateId()).getEstateTokenPrice() * trade.getTradeTokenAmount())
                         .tradeDate(trade.getTradeDate())
                         .tradeType("매수")
                         .build())
@@ -276,7 +275,7 @@ public class CustomerServiceImpl implements CustomerService {
                         .estateId(trade.getEstate().getEstateId())
                         .estateName(trade.getEstate().getEstateName())
                         .tradeTokenAmount(trade.getTradeTokenAmount())
-                        .tradeTokenPrice(estateServiceImpl.getRedisEstatePrice(trade.getEstate().getEstateId()).getEstateTokenPrice() * trade.getTradeTokenAmount())
+                        .tradeTokenPrice(estateRedisServiceImpl.getRedisEstatePrice(trade.getEstate().getEstateId()).getEstateTokenPrice() * trade.getTradeTokenAmount())
                         .tradeDate(trade.getTradeDate())
                         .tradeType("매도")
                         .build())

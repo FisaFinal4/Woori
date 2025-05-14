@@ -7,8 +7,8 @@ import lombok.Getter;
 import java.time.LocalDateTime;
 
 @Getter
-@AllArgsConstructor
 @Builder
+@AllArgsConstructor
 public class GetSubscriptionSimpleResponse {
 
     private Long estateId;

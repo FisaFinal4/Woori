@@ -2,7 +2,6 @@ package com.piehouse.woorepie.estate.controller;
 
 import com.piehouse.woorepie.estate.dto.response.GetEstateDetailsResponse;
 import com.piehouse.woorepie.estate.dto.response.GetEstateSimpleResponse;
-import com.piehouse.woorepie.estate.dto.response.GetEstateDetailsResponse;
 import com.piehouse.woorepie.estate.service.EstateService;
 import com.piehouse.woorepie.global.response.ApiResponse;
 import com.piehouse.woorepie.global.response.ApiResponseUtil;

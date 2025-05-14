@@ -2,21 +2,23 @@ package com.piehouse.woorepie.subscription.service.implement;
 
 import com.piehouse.woorepie.agent.entity.Agent;
 import com.piehouse.woorepie.agent.repository.AgentRepository;
+import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.estate.dto.RedisEstatePrice;
-import com.piehouse.woorepie.estate.entity.DividendYield;
+import com.piehouse.woorepie.estate.entity.Dividend;
 import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.estate.entity.EstatePrice;
 import com.piehouse.woorepie.estate.entity.SubState;
-import com.piehouse.woorepie.estate.repository.DividendYieldRepository;
+import com.piehouse.woorepie.estate.repository.DividendRepository;
 import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
 import com.piehouse.woorepie.estate.repository.EstateRepository;
+import com.piehouse.woorepie.estate.service.implement.EstateRedisServiceImpl;
 import com.piehouse.woorepie.estate.service.implement.EstateServiceImpl;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
+import com.piehouse.woorepie.global.service.implement.S3ServiceImpl;
 import com.piehouse.woorepie.subscription.dto.request.RegisterEstateRequest;
 import com.piehouse.woorepie.subscription.dto.response.GetSubscriptionDetailsResponse;
 import com.piehouse.woorepie.subscription.dto.response.GetSubscriptionSimpleResponse;
-import com.piehouse.woorepie.subscription.entity.Subscription;
 import com.piehouse.woorepie.subscription.repository.SubscriptionRepository;
 import com.piehouse.woorepie.subscription.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
@@ -34,9 +36,10 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final EstateRepository estateRepository;
     private final EstatePriceRepository estatePriceRepository;
     private final AgentRepository agentRepository;
-    private final SubscriptionRepository subscriptionRepository;
     private final EstateServiceImpl estateServiceImpl;
-    private final DividendYieldRepository dividendYieldRepository;
+    private final EstateRedisServiceImpl  estateRedisServiceImpl;
+    private final DividendRepository dividendRepository;
+    private final S3ServiceImpl s3serviceImpl;
 
 
     @Override
@@ -54,34 +57,33 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .estateLatitude(request.getEstateLatitude())
                 .estateLongitude(request.getEstateLongitude())
                 .estateDescription(request.getEstateDescription())
-                .estateImageUrl(request.getEstateImageUrl())
-                .subGuideUrl(request.getSubGuideUrl())
-                .securitiesReportUrl(request.getSecuritiesReportUrl())
-                .investmentExplanationUrl(request.getInvestmentExplanationUrl())
-                .propertyMngContractUrl(request.getPropertyMngContractUrl())
-                .appraisalReportUrl(request.getAppraisalReportUrl())
+                .estateImageUrl(s3serviceImpl.getPublicS3Url(request.getEstateImageUrlKey()))
+                .subGuideUrl(s3serviceImpl.getPublicS3Url(request.getSubGuideUrlKey()))
+                .securitiesReportUrl(s3serviceImpl.getPublicS3Url(request.getSecuritiesReportUrlKey()))
+                .investmentExplanationUrl(s3serviceImpl.getPublicS3Url(request.getInvestmentExplanationUrlKey()))
+                .propertyMngContractUrl(s3serviceImpl.getPublicS3Url(request.getPropertyMngContractUrlKey()))
+                .appraisalReportUrl(s3serviceImpl.getPublicS3Url(request.getAppraisalReportUrlKey()))
                 .estateRegistrationDate(LocalDateTime.now())
                 .tokenAmount(request.getTokenAmount())
                 .build();
-
         estateRepository.save(estate);
-    //매물 시세 테이블..
+
+    //매물 시세 테이블
         EstatePrice estatePrice = EstatePrice.builder()
                 .estate(estate)
                 .estatePrice(request.getEstatePrice())
                 .estatePriceDate(LocalDateTime.now())
                 .build();
-
         estatePriceRepository.save(estatePrice);
 
-    //배당률 테이블도 함께 저장...
-        DividendYield dividendYield = DividendYield.builder()
+    //배당률 테이블도 함께 저장
+        Dividend dividend = Dividend.builder()
                 .estate(estate)
                 .dividendYield(request.getDividendYield())
                 .dividendYieldDate(LocalDateTime.now())
                 .build();
+        dividendRepository.save(dividend);
 
-        dividendYieldRepository.save(dividendYield);
     }
     
     //청약 가능한 매물 리스트 조회
@@ -90,11 +92,11 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     public List<GetSubscriptionSimpleResponse> getActiveSubscriptions() {
         List<Estate> estates = estateRepository.findBySubStateIn(List.of(
                 SubState.READY, SubState.RUNNING, SubState.PENDING, SubState.FAILURE
-        )); // ✅ 청약 중인 substate 필터링
+        )); // 청약 중인 substate 필터링
 
         return estates.stream()
                 .map(estate -> {
-                    RedisEstatePrice price = estateServiceImpl.getRedisEstatePrice(estate.getEstateId());
+                    RedisEstatePrice price = estateRedisServiceImpl.getRedisEstatePrice(estate.getEstateId());
 
                     return GetSubscriptionSimpleResponse.builder()
                             .estateId(estate.getEstateId())

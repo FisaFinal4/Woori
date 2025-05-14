@@ -1,19 +1,32 @@
 package com.piehouse.woorepie.estate.service.implement;
 
+import com.piehouse.woorepie.estate.dto.RedisEstatePrice;
+import com.piehouse.woorepie.estate.entity.Dividend;
+import com.piehouse.woorepie.estate.entity.Estate;
+import com.piehouse.woorepie.estate.entity.EstatePrice;
+import com.piehouse.woorepie.estate.repository.DividendRepository;
+import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
 import com.piehouse.woorepie.estate.repository.EstateRepository;
 import com.piehouse.woorepie.estate.service.EstateRedisService;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
 public class EstateRedisServiceImpl implements EstateRedisService {
     private final RedisTemplate<String, String> redisStringTemplate;
+    private final RedisTemplate<String, Object> redisObjectTemplate;
     private final EstateRepository estateRepository;
+    private final EstatePriceRepository estatePriceRepository;
+    private final DividendRepository dividendRepository;
+    private static final String REDIS_ESTATE_PRICE_KEY_PREFIX = "estate:price:";
 
     private static final String REMAINING_TOKENS_KEY_FORMAT = "subscription:%s:remaining-tokens"; // estateId
 
@@ -52,5 +65,45 @@ public class EstateRedisServiceImpl implements EstateRedisService {
     public Long incrementTokens(String estateId, int amount) {
         String key = String.format(REMAINING_TOKENS_KEY_FORMAT, estateId);
         return redisStringTemplate.opsForValue().increment(key, amount);
+    }
+
+    // 레디스에서 매물 시세 정보 가져오기
+    public RedisEstatePrice getRedisEstatePrice(Long estateId) {
+        String key = REDIS_ESTATE_PRICE_KEY_PREFIX + estateId;
+        ValueOperations<String, Object> ops = redisObjectTemplate.opsForValue();
+
+        Object cached = ops.get(key);
+        if (cached instanceof RedisEstatePrice price) {
+            return price;
+        }
+
+        Estate estate = estateRepository.findById(estateId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
+
+        EstatePrice latest = estatePriceRepository
+                .findTopByEstate_EstateIdOrderByEstatePriceDateDesc(estateId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
+
+        BigDecimal dividendYield = dividendRepository
+                .findTopByEstate_EstateIdOrderByDividendYieldDateDesc(estateId)
+                .map(Dividend::getDividendYield)
+                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
+
+        int tokenCount = estate.getTokenAmount();
+        int estatePrice = latest.getEstatePrice();
+        int estateTokenPrice = tokenCount != 0 ? estatePrice / tokenCount : 0;
+
+        // Redis 저장 객체 생성
+        RedisEstatePrice rep = RedisEstatePrice.builder()
+                .estatePrice(estatePrice)
+                .estateTokenPrice(estateTokenPrice)
+                .tokenAmount(tokenCount)
+                .dividendYield(dividendYield)
+                .build();
+
+        // Redis 캐싱 후 반환
+        ops.set(key, rep);
+        return rep;
+
     }
 }

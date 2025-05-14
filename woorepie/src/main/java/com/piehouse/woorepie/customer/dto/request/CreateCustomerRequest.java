@@ -33,7 +33,7 @@ public class CreateCustomerRequest {
     @NotNull(message = "customerDateOfBirth은 필수입니다.")
     private LocalDate customerDateOfBirth;
 
-    @NotBlank(message = "customerIdentificationUrl은 필수입니다.")
-    private String customerIdentificationUrl;
+    @NotBlank(message = "customerIdentificationUrlKey은 필수입니다.")
+    private String customerIdentificationUrlKey;
 
 }

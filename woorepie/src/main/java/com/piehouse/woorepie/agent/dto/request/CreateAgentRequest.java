@@ -31,10 +31,10 @@ public class CreateAgentRequest {
     private LocalDate agentDateOfBirth;
 
     @NotBlank
-    private String agentIdentificationUrl;
+    private String agentIdentificationUrlKey;
 
     @NotNull
-    private String agentCertUrl;
+    private String agentCertUrlKey;
 
     @NotBlank
     private String businessName;
@@ -49,6 +49,6 @@ public class CreateAgentRequest {
     private String businessAddress;
 
     @NotBlank
-    private String warrantUrl;
+    private String warrantUrlKey;
 
 }

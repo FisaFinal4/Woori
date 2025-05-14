@@ -20,19 +20,35 @@ public class S3ServiceImpl implements S3Service {
 
     private final S3Presigner presigner;
     private final String bucketName;
+    private final String region;
 
     private final Duration validFor = Duration.ofMinutes(5);
 
-    public S3ServiceImpl(S3Presigner presigner, @Value("${aws.s3.bucket}") String bucketName) {
+    public S3ServiceImpl(S3Presigner presigner, @Value("${aws.s3.bucket}") String bucketName, @Value("${aws.region}") String region) {
         this.presigner = presigner;
         this.bucketName = bucketName;
+        this.region = region;
+    }
+
+    @Override
+    public String getPublicS3Url(String key) {
+        System.out.println(String.format("https://%s.s3.%s.amazonaws.com/%s",
+                bucketName,
+                region,
+                key
+        ));
+        return String.format("https://%s.s3.%s.amazonaws.com/%s",
+                bucketName,
+                region,
+                key
+        );
     }
 
     @Override
     public S3UrlResponse generateCustomerPresignedUrl(String domain, String customerEmail) {
 
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        String objectKey = String.format("%s/%s/%s", domain+"identification", customerEmail, timestamp);
+        String objectKey = String.format("%s/%s/%s", domain+"/identification", customerEmail, timestamp);
 
         PutObjectRequest putReq = PutObjectRequest.builder()
                 .bucket(bucketName)
