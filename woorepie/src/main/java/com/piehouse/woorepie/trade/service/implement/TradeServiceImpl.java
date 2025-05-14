@@ -81,10 +81,6 @@ public class TradeServiceImpl implements TradeService {
         int newTokenAmount = sellerAccount.getAccountTokenAmount() - tradeTokenAmount;
         int newTotalAmount = sellerAccount.getTotalAccountAmount() - tradeAmount;
 
-        if (newTokenAmount < 0 || newTotalAmount < 0) {
-            throw new CustomException(ErrorCode.INSUFFICIENT_CASH);
-        }
-
         // 판매자 계좌 업데이트 - 토큰과 금액 모두 감소
         sellerAccount.updateTokenAmount(newTokenAmount)
                 .updateTotalAmount(newTotalAmount);
