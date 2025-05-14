@@ -19,6 +19,8 @@ public class GetEstateDetailsResponse {
 
     private String estateName;
 
+    private String businessName;
+
     private String estateState;
 
     private String estateCity;
@@ -29,9 +31,19 @@ public class GetEstateDetailsResponse {
 
     private String estateLongitude;
 
+    private String estateImageUrl;
+
+    private Integer estatePrice;
+
     private Integer tokenAmount;
 
+    private Integer estateTokenPrice;
+
     private String estateDescription;
+
+    private BigDecimal dividendYield;
+
+    private String estateUseZone;
 
     private BigDecimal totalEstateArea;
 
@@ -46,9 +58,5 @@ public class GetEstateDetailsResponse {
     private String propertyMngContractUrl;
 
     private String appraisalReportUrl;
-
-    private Integer estateTokenPrice;
-
-    private BigDecimal dividendYield;
 
 }

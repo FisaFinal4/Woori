@@ -17,16 +17,16 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EstateController {
 
-    private final EstateService estateService;
+            private final EstateService estateService;
 
-    /**
-     * 청약 완료된 매물 리스트 조회
-     */
-    @GetMapping
-    public ResponseEntity<ApiResponse<List<GetEstateSimpleResponse>>> getTradableEstates(
-            HttpServletRequest request) {
+            /**
+             * 청약 완료된 매물 리스트 조회
+             */
+            @GetMapping
+            public ResponseEntity<ApiResponse<List<GetEstateSimpleResponse>>> getTradableEstates(
+                    HttpServletRequest request) {
 
-        List<GetEstateSimpleResponse> responseList = estateService.getTradableEstates();
+                List<GetEstateSimpleResponse> responseList = estateService.getTradableEstates();
         return ApiResponseUtil.success(responseList, request);
     }
 

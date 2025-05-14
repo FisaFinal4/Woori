@@ -20,11 +20,13 @@ public class GetEstateSimpleResponse {
 
     private String estateCity;
 
+    private String estateImageUrl;
+
+    private BigDecimal dividendYield;
+
     private Integer tokenAmount;
 
     private Integer estateTokenPrice;
-
-    private BigDecimal dividendYield;
 
     private LocalDateTime estateRegistrationDate;
 

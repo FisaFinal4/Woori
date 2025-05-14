@@ -34,6 +34,7 @@ public class EstateServiceImpl implements EstateService {
     @Override
     @Transactional(readOnly = true)
     public List<GetEstateSimpleResponse> getTradableEstates() {
+
         List<Estate> estates = estateRepository.findBySubState(SubState.SUCCESS);
 
         List<Long> estateIds = estates.stream()
@@ -52,10 +53,11 @@ public class EstateServiceImpl implements EstateService {
                             .estateName(estate.getEstateName())
                             .estateState(estate.getEstateState())
                             .estateCity(estate.getEstateCity())
+                            .dividendYield(price.getDividendYield())
                             .tokenAmount(price.getTokenAmount())
                             .estateTokenPrice(price.getEstateTokenPrice())
-                            .dividendYield(price.getDividendYield()) // BigDecimal 기준
                             .estateRegistrationDate(estate.getEstateRegistrationDate())
+                            .estateImageUrl(estate.getEstateImageUrl())
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -75,13 +77,19 @@ public class EstateServiceImpl implements EstateService {
                 .agentId(estate.getAgent().getAgentId())
                 .agentName(estate.getAgent().getAgentName())
                 .estateName(estate.getEstateName())
+                .businessName(estate.getAgent().getBusinessName())
                 .estateState(estate.getEstateState())
                 .estateCity(estate.getEstateCity())
                 .estateAddress(estate.getEstateAddress())
                 .estateLatitude(estate.getEstateLatitude())
                 .estateLongitude(estate.getEstateLongitude())
+                .estateImageUrl(estate.getEstateImageUrl())
+                .estatePrice(price.getEstatePrice())
                 .tokenAmount(estate.getTokenAmount())
+                .dividendYield(price.getDividendYield())
+                .estateTokenPrice(price.getEstateTokenPrice())
                 .estateDescription(estate.getEstateDescription())
+                .estateUseZone(estate.getEstateUseZone())
                 .totalEstateArea(estate.getTotalEstateArea())
                 .tradedEstateArea(estate.getTradedEstateArea())
                 .subGuideUrl(estate.getSubGuideUrl())
@@ -89,8 +97,6 @@ public class EstateServiceImpl implements EstateService {
                 .investmentExplanationUrl(estate.getInvestmentExplanationUrl())
                 .propertyMngContractUrl(estate.getPropertyMngContractUrl())
                 .appraisalReportUrl(estate.getAppraisalReportUrl())
-                .estateTokenPrice(price.getEstateTokenPrice())
-                .dividendYield(price.getDividendYield())
                 .build();
     }
 

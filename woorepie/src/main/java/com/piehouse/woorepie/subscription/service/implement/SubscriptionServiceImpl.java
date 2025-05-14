@@ -23,6 +23,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -73,10 +75,15 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .build();
         estatePriceRepository.save(estatePrice);
 
-    //배당률 테이블도 함께 저장
+        //배당률 테이블도 함께 저장
+        BigDecimal dividendYield = new BigDecimal(request.getDividend())
+                .divide(new BigDecimal(estateRedisServiceImpl.getRedisEstatePrice(estate.getEstateId()).getEstateTokenPrice()), 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal(100));
+
         Dividend dividend = Dividend.builder()
                 .estate(estate)
-                .dividendYield(request.getDividendYield())
+                .dividend(request.getDividend())
+                .dividendYield(dividendYield)
                 .dividendYieldDate(LocalDateTime.now())
                 .build();
         dividendRepository.save(dividend);
@@ -106,13 +113,18 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                     return GetSubscriptionSimpleResponse.builder()
                             .estateId(estate.getEstateId())
                             .estateName(estate.getEstateName())
+                            .agentId(estate.getAgent().getAgentId())
                             .agentName(estate.getAgent().getAgentName())
                             .subStartDate(estate.getSubStartDate())
+                            .subEndDate(estate.getSubEndDate())
                             .estateState(estate.getEstateState())
                             .estateCity(estate.getEstateCity())
                             .estateImageUrl(estate.getEstateImageUrl())
                             .tokenAmount(price.getTokenAmount())
                             .estatePrice(price.getEstatePrice())
+                            .estateTokenPrice(price.getEstateTokenPrice())
+                            .dividendYield(price.getDividendYield())
+                            .subState(estate.getSubState())
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -126,9 +138,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         Estate estate = estateRepository.findById(estateId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
-        EstatePrice price = estatePriceRepository
-                .findTopByEstate_EstateIdOrderByEstatePriceDateDesc(estateId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
+        RedisEstatePrice price = estateRedisServiceImpl.getRedisEstatePrice(estateId);
 
         int subTokenAmount = estate.getTokenAmount();
 
@@ -137,13 +147,26 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .estateName(estate.getEstateName())
                 .agentId(estate.getAgent().getAgentId())
                 .agentName(estate.getAgent().getAgentName())
+                .businessName(estate.getAgent().getBusinessName())
                 .subStartDate(estate.getSubStartDate())
                 .subEndDate(estate.getSubEndDate())
+                .estateState(estate.getEstateState())
+                .estateCity(estate.getEstateCity())
                 .estateAddress(estate.getEstateAddress())
+                .estateLatitude(estate.getEstateLatitude())
+                .estateLongitude(estate.getEstateLongitude())
                 .estateImageUrl(estate.getEstateImageUrl())
                 .estatePrice(price.getEstatePrice())
                 .tokenAmount(estate.getTokenAmount())
                 .subTokenAmount(subTokenAmount)
+                .estateTokenPrice(price.getEstateTokenPrice())
+                .dividendYield(price.getDividendYield())
+                .subState(estate.getSubState())
+                .estateUseZone(estate.getEstateUseZone())
+                .totalEstateArea(estate.getTotalEstateArea())
+                .tradedEstateArea(estate.getTradedEstateArea())
+                .subGuideUrl(estate.getSubGuideUrl())
+                .securitiesReportUrl(estate.getSecuritiesReportUrl())
                 .investmentExplanationUrl(estate.getInvestmentExplanationUrl())
                 .propertyMngContractUrl(estate.getPropertyMngContractUrl())
                 .appraisalReportUrl(estate.getAppraisalReportUrl())
