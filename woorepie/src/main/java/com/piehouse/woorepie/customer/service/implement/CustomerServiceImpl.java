@@ -224,7 +224,7 @@ public class CustomerServiceImpl implements CustomerService {
                         .accountTokenAmount(account.getAccountTokenAmount())
                         .accountTokenPrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getEstateTokenPrice() * account.getAccountTokenAmount())
                         .estateTokenPrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getEstateTokenPrice())
-                        .recentEstatePrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getDividendYield())
+                        .estatePrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getDividendYield())
                         .build())
                 .toList();
 
