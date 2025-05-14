@@ -13,6 +13,8 @@ public enum ErrorCode {
     ALREADY_REGISTERED_EMAIL(HttpStatus.BAD_REQUEST, "이미 등록된 이메일입니다."),
     ALREADY_REGISTERED_PHONE_NUMBER(HttpStatus.BAD_REQUEST, "이미 등록된 전화번호입니다."),
     TOKEN_INSUFFICIENT(HttpStatus.BAD_REQUEST, "남은 토큰이 부족합니다."),
+    DUPLICATE_SUBSCRIPTION(HttpStatus.BAD_REQUEST, "이미 청약한 기록이 있습니다."), // 중복 청약
+    ESTATE_NOT_RUNNING(HttpStatus.BAD_REQUEST, "청약 진행 중인 매물이 아닙니다."),
 
     // 401: 인증 실패
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "로그인 정보가 일치하지 않습니다."),

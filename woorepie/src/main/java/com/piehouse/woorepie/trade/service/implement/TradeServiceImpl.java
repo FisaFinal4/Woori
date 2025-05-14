@@ -6,6 +6,7 @@ import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.estate.entity.EstatePrice;
+import com.piehouse.woorepie.estate.entity.SubState;
 import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
 import com.piehouse.woorepie.estate.repository.EstateRepository;
 import com.piehouse.woorepie.global.exception.CustomException;
@@ -22,9 +23,13 @@ import com.piehouse.woorepie.trade.repository.TradeRepository;
 import com.piehouse.woorepie.trade.service.TradeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
 import com.piehouse.woorepie.subscription.repository.SubscriptionRepository;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -285,53 +290,66 @@ public class TradeServiceImpl implements TradeService {
     }
 
     // 청약 신청 처리 로직
-    @Transactional
+    @Retryable(value = ObjectOptimisticLockingFailureException.class, maxAttempts = 3)
     public void processSubscription(Long estateId, Long customerId, int requestedAmount, int tokenPrice) {
-        // 1. Redis 트랜잭션 시작
         String redisKey = String.format(REMAINING_TOKENS_KEY_FORMAT, estateId);
-        Long newRemaining = redisTemplate.opsForValue().decrement(redisKey, requestedAmount);
 
+        // 1. 매물 상태 확인 (RUNNING 상태만 허용)
+        Estate estate = estateRepository.findById(estateId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
+
+        if (estate.getSubState() != SubState.RUNNING) {
+            throw new CustomException(ErrorCode.ESTATE_NOT_RUNNING);
+        }
+
+        // 2. Redis 토큰 선점
+        Long newRemaining = redisTemplate.opsForValue().decrement(redisKey, requestedAmount);
         if (newRemaining == null || newRemaining < 0) {
-            redisTemplate.opsForValue().increment(redisKey, requestedAmount);
+            redisTemplate.opsForValue().increment(redisKey, requestedAmount); // 롤백
             throw new CustomException(ErrorCode.TOKEN_INSUFFICIENT);
         }
 
         try {
-            // 2. PostgreSQL 트랜잭션 시작 (내부)
             executeInTransaction(() -> {
-                Estate estate = estateRepository.findById(estateId)
-                        .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
-
                 Customer customer = customerRepository.findById(customerId)
                         .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-                // 청약 저장
-                Subscription subscription = Subscription.builder()
-                        .estate(estate) // 실제 엔티티 주입
-                        .customer(customer) // 실제 엔티티 주입
-                        .subTokenAmount(requestedAmount)
-                        .build(); // subDate는 @CreationTimestamp로 자동 처리
-
-                subscriptionRepository.save(subscription);
-
-                // 고객 계좌 업데이트
+                // 3. 고객 계좌 차감
                 int totalPrice = requestedAmount * tokenPrice;
-                customer.decreaseBalance(totalPrice); // 보유한 계좌에서 감소
-                customerRepository.save(customer);
+                int updatedRows = customerRepository.decreaseBalance(customerId, totalPrice);
+
+                if (updatedRows == 0) {
+                    throw new CustomException(ErrorCode.INSUFFICIENT_CASH);
+                }
+
+                // 4. 청약 기록 저장
+                Subscription subscription = Subscription.builder()
+                        .estate(estate)
+                        .customer(customer)
+                        .subTokenAmount(requestedAmount)
+                        .subDate(LocalDateTime.now()) // 현재 시각 저장
+                        .build();
+                subscriptionRepository.save(subscription);
+                log.info("청약 성공 - estateId: {}, customerId: {}", estateId, customerId);
             });
+        } catch (DataIntegrityViolationException e) {
+            // Unique 제약조건 위반 (중복 청약)
+            redisTemplate.opsForValue().increment(redisKey, requestedAmount); // Redis 롤백
+            log.error("중복 청약 시도 - estateId: {}, customerId: {}", estateId, customerId);
+            throw new CustomException(ErrorCode.DUPLICATE_SUBSCRIPTION);
         } catch (Exception e) {
-            // PostgreSQL 트랜잭션 실패 → Redis 롤백
-            redisTemplate.opsForValue().increment(redisKey, requestedAmount);
+            redisTemplate.opsForValue().increment(redisKey, requestedAmount); // Redis 롤백
+            log.error("청약 처리 실패 - estateId: {}, customerId: {}", estateId, customerId, e);
             throw e;
         }
     }
 
     private void executeInTransaction(Runnable action) {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         transactionTemplate.execute(status -> {
             action.run();
             return null;
         });
     }
 }
-
