@@ -36,7 +36,7 @@ public class EstateServiceImpl implements EstateService {
     private final DividendYieldRepository dividendYieldRepository;
     private static final String REDIS_ESTATE_PRICE_KEY_PREFIX = "estate:price:";
 
-    // 거래 가능한 매물 리스트 조회
+    // 매물 리스트 조회
     @Override
     public List<GetEstateSimpleResponse> getTradableEstates() {
         List<Estate> estates = estateRepository.findBySubState(SubState.SUCCESS);
@@ -44,23 +44,16 @@ public class EstateServiceImpl implements EstateService {
         return estates.stream()
                 .map(estate -> {
                     Long estateId = estate.getEstateId();
-
-                    EstatePrice price = estatePriceRepository
-                            .findTopByEstate_EstateIdOrderByEstatePriceDateDesc(estateId)
-                            .orElse(null);
-
-                    DividendYield yield = dividendYieldRepository
-                            .findTopByEstate_EstateIdOrderByDividendYieldDateDesc(estateId)
-                            .orElse(null);
+                    RedisEstatePrice price = getRedisEstatePrice(estateId);
 
                     return GetEstateSimpleResponse.builder()
                             .estateId(estateId)
                             .estateName(estate.getEstateName())
                             .estateState(estate.getEstateState())
                             .estateCity(estate.getEstateCity())
-                            .tokenAmount(estate.getTokenAmount())
-                            .estateTokenPrice(price != null ? price.getEstatePrice() : null)
-                            .dividendYield(yield != null ? yield.getDividendYield() : null)
+                            .tokenAmount(price.getTokenAmount())
+                            .estateTokenPrice(price.getEstateTokenPrice())
+                            .dividendYield(price.getDividendYield()) // BigDecimal 기준
                             .estateRegistrationDate(estate.getEstateRegistrationDate())
                             .build();
                 })
@@ -73,14 +66,7 @@ public class EstateServiceImpl implements EstateService {
         Estate estate = estateRepository.findById(estateId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
-        EstatePrice price = estatePriceRepository
-                .findTopByEstate_EstateIdOrderByEstatePriceDateDesc(estateId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
-
-        // 배당률 0?인 경우 어떻게 할건지 논의 필요..
-        DividendYield yield = dividendYieldRepository
-                .findTopByEstate_EstateIdOrderByDividendYieldDateDesc(estateId)
-                .orElse(null);
+        RedisEstatePrice price = getRedisEstatePrice(estateId);
 
         return GetEstateDetailsResponse.builder()
                 .estateId(estate.getEstateId())
@@ -101,10 +87,11 @@ public class EstateServiceImpl implements EstateService {
                 .investmentExplanationUrl(estate.getInvestmentExplanationUrl())
                 .propertyMngContractUrl(estate.getPropertyMngContractUrl())
                 .appraisalReportUrl(estate.getAppraisalReportUrl())
-                .estateTokenPrice(price.getEstatePrice())
-                .dividendYield(yield != null ? yield.getDividendYield() : null)
+                .estateTokenPrice(price.getEstateTokenPrice())
+                .dividendYield(price.getDividendYield())
                 .build();
     }
+
 
     @Override
     @Transactional(readOnly = true)
@@ -170,7 +157,7 @@ public class EstateServiceImpl implements EstateService {
                 .estatePrice(estatePrice)
                 .estateTokenPrice(estateTokenPrice)
                 .tokenAmount(tokenCount)
-                .dividendYield(dividend.intValue())  // Integer로 변환
+                .dividendYield(dividend)  // Integer로 변환
                 .build();
 
         // 4. Redis 캐싱 후 반환
