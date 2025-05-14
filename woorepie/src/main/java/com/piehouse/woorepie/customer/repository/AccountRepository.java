@@ -26,5 +26,8 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     
     // 고객으로 계좌 리스트 조회
     List<Account> findByCustomer(Customer customer);
+    
+    // 매물로 계좌 조회하기
+    List<Account> findByEstate(Estate estate);
 
 }
