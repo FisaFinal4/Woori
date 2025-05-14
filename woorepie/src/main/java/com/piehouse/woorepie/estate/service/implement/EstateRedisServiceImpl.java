@@ -17,6 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -68,6 +72,8 @@ public class EstateRedisServiceImpl implements EstateRedisService {
     }
 
     // 레디스에서 매물 시세 정보 가져오기
+    @Override
+    @Transactional
     public RedisEstatePrice getRedisEstatePrice(Long estateId) {
         String key = REDIS_ESTATE_PRICE_KEY_PREFIX + estateId;
         ValueOperations<String, Object> ops = redisObjectTemplate.opsForValue();
@@ -106,4 +112,39 @@ public class EstateRedisServiceImpl implements EstateRedisService {
         return rep;
 
     }
+
+    // 레드스에서 매물 시세 정보 Redis Bulk 조회
+    @Override
+    public Map<Long, RedisEstatePrice> getMultipleRedisEstatePrice(List<Long> estateIds) {
+
+        if (estateIds == null || estateIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<String> keys = estateIds.stream()
+                .map(id -> REDIS_ESTATE_PRICE_KEY_PREFIX + id)
+                .toList();
+
+        List<Object> cachedList = redisObjectTemplate.opsForValue().multiGet(keys);
+
+        Map<Long, RedisEstatePrice> result = new HashMap<>();
+        for (int i = 0; i < estateIds.size(); i++) {
+            Object cached = cachedList.get(i);
+            if (cached instanceof RedisEstatePrice price) {
+                result.put(estateIds.get(i), price);
+            } else {
+                // 캐시 없으면 개별 estateId에 대해 기존 로직 수행 후 캐싱
+                RedisEstatePrice rep = getRedisEstatePrice(estateIds.get(i));
+                result.put(estateIds.get(i), rep);
+            }
+        }
+
+        return result;
+    }
+
+    @Override
+    public void deleteRedisEstatePrice(Long estateId) {
+        redisStringTemplate.delete(REDIS_ESTATE_PRICE_KEY_PREFIX + estateId);
+    }
+
 }

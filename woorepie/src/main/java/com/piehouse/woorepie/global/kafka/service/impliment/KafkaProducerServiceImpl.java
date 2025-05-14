@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import java.time.LocalDateTime;
 
 @Slf4j
 @Service
@@ -58,8 +57,5 @@ public class KafkaProducerServiceImpl implements KafkaProducerService {
     public void sendSubscriptionRequest(SubscriptionRequestEvent event) {
         send(SUBSCRIPTION_REQUEST_TOPIC, event); // 공통 send() 사용
     }
-
-
-
 
 }

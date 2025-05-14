@@ -11,7 +11,6 @@ import com.piehouse.woorepie.estate.repository.DividendRepository;
 import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
 import com.piehouse.woorepie.estate.repository.EstateRepository;
 import com.piehouse.woorepie.estate.service.implement.EstateRedisServiceImpl;
-import com.piehouse.woorepie.estate.service.implement.EstateServiceImpl;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.global.kafka.dto.*;
@@ -41,12 +40,6 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
     private final EstatePriceRepository estatePriceRepository;
     private final CustomerRepository customerRepository;
 
-
-    @Override
-    @KafkaListener(topics = "test", groupId = "group-test")
-    public void listenToTopicTest(String message) {
-        System.out.println("Received from topic-test: " + message);
-    }
 
     @Override
     @KafkaListener(topics = "order.created", groupId = "group-order")
@@ -130,7 +123,6 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
         Long estateId = message.getEstateId();
         Integer dividend = message.getDividend();
 
-        // 1. 매물 존재 확인
         Estate estate = estateRepository.findById(estateId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
@@ -138,17 +130,19 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
                 .divide(new BigDecimal(estateRedisServiceImpl.getRedisEstatePrice(estateId).getEstateTokenPrice()), 4, RoundingMode.HALF_UP)
                 .multiply(new BigDecimal(100));
 
-        // 2. 배당률 저장
+        // 배당률 저장
         Dividend record = Dividend.builder()
                 .estate(estate)
                 .dividend(dividend)
                 .dividendYield(dividendYield)
                 .build();
-
         dividendRepository.save(record);
 
-        // 3. 해당 estate를 보유한 계좌 전체 조회
-        List<Account> accounts = accountRepository.findByEstate(estate);
+        // 레디스에서 과거 매물 정보 삭제
+        estateRedisServiceImpl.deleteRedisEstatePrice(estateId);
+
+        // 해당 estate를 보유한 계좌 전체 조회
+        List<Account> accounts = accountRepository.findByEstateWithCustomer(estate);
 
         for (Account account : accounts) {
             int tokenAmount = account.getAccountTokenAmount();
@@ -189,7 +183,7 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
         int estatePrice = latestPrice.getEstatePrice();
 
         // 4. 계좌 조회
-        List<Account> accounts = accountRepository.findByEstate(estate);
+        List<Account> accounts = accountRepository.findByEstateWithCustomer(estate);
 
         for (Account account : accounts) {
             int tokenAmount = account.getAccountTokenAmount();

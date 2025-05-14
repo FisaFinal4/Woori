@@ -2,7 +2,6 @@ package com.piehouse.woorepie.subscription.service.implement;
 
 import com.piehouse.woorepie.agent.entity.Agent;
 import com.piehouse.woorepie.agent.repository.AgentRepository;
-import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.estate.dto.RedisEstatePrice;
 import com.piehouse.woorepie.estate.entity.Dividend;
 import com.piehouse.woorepie.estate.entity.Estate;
@@ -19,7 +18,6 @@ import com.piehouse.woorepie.global.service.implement.S3ServiceImpl;
 import com.piehouse.woorepie.subscription.dto.request.RegisterEstateRequest;
 import com.piehouse.woorepie.subscription.dto.response.GetSubscriptionDetailsResponse;
 import com.piehouse.woorepie.subscription.dto.response.GetSubscriptionSimpleResponse;
-import com.piehouse.woorepie.subscription.repository.SubscriptionRepository;
 import com.piehouse.woorepie.subscription.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,7 +39,6 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final EstateRedisServiceImpl  estateRedisServiceImpl;
     private final DividendRepository dividendRepository;
     private final S3ServiceImpl s3serviceImpl;
-
 
     @Override
     @Transactional
@@ -90,13 +88,21 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     @Override
     @Transactional(readOnly = true)
     public List<GetSubscriptionSimpleResponse> getActiveSubscriptions() {
+
         List<Estate> estates = estateRepository.findBySubStateIn(List.of(
                 SubState.READY, SubState.RUNNING, SubState.PENDING, SubState.FAILURE
         )); // 청약 중인 substate 필터링
 
+        List<Long> estateIds = estates.stream()
+                .map(Estate::getEstateId)
+                .toList();
+
+        Map<Long, RedisEstatePrice> estatePriceMap = estateRedisServiceImpl.getMultipleRedisEstatePrice(estateIds);
+
+
         return estates.stream()
                 .map(estate -> {
-                    RedisEstatePrice price = estateRedisServiceImpl.getRedisEstatePrice(estate.getEstateId());
+                    RedisEstatePrice price = estatePriceMap.get(estate.getEstateId());
 
                     return GetSubscriptionSimpleResponse.builder()
                             .estateId(estate.getEstateId())
@@ -111,8 +117,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                             .build();
                 })
                 .collect(Collectors.toList());
-    }
 
+    }
 
     // 청약 매물 상세정보 조회
     @Override
@@ -143,6 +149,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .propertyMngContractUrl(estate.getPropertyMngContractUrl())
                 .appraisalReportUrl(estate.getAppraisalReportUrl())
                 .build();
+
     }
 
 }

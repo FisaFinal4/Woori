@@ -34,25 +34,16 @@ public class SubscriptionController {
         return ApiResponseUtil.of(HttpStatus.CREATED, "매물 청약 등록 성공", null, httpRequest);
     }
 
-    /**
-     * 청약중인 매물 리스트 조회
-     */
-//    @GetMapping("/list")
-//    public ResponseEntity<ApiResponse<List<GetSubscriptionSimpleResponse>>> getAllSubscriptionEstates(
-//            HttpServletRequest request
-//    ) {
-//        List<GetSubscriptionSimpleResponse> responseList = subscriptionService.getActiveSubscriptions();
-//        return ApiResponseUtil.success(responseList, request);
-//    }
+    // 청약중인 매물 리스트 조회
+    @GetMapping("/list")
+    public ResponseEntity<ApiResponse<List<GetSubscriptionSimpleResponse>>> getAllSubscriptionEstates(HttpServletRequest request) {
+        List<GetSubscriptionSimpleResponse> responseList = subscriptionService.getActiveSubscriptions();
+        return ApiResponseUtil.success(responseList, request);
+    }
 
-    /**
-     * 청약 매물 상세 조회
-     */
+    // 청약 매물 상세 조회
     @GetMapping
-    public ResponseEntity<ApiResponse<GetSubscriptionDetailsResponse>> getSubscriptionDetails(
-            @RequestParam Long estateId,
-            HttpServletRequest request
-    ) {
+    public ResponseEntity<ApiResponse<GetSubscriptionDetailsResponse>> getSubscriptionDetails(@RequestParam Long estateId, HttpServletRequest request) {
         GetSubscriptionDetailsResponse response = subscriptionService.getSubscriptionDetails(estateId);
         return ApiResponseUtil.success(response, request);
     }

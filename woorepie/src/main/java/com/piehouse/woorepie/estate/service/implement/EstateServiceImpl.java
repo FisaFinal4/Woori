@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,16 +33,23 @@ public class EstateServiceImpl implements EstateService {
 
     // 매물 리스트 조회
     @Override
+    @Transactional(readOnly = true)
     public List<GetEstateSimpleResponse> getTradableEstates() {
         List<Estate> estates = estateRepository.findBySubState(SubState.SUCCESS);
 
+        List<Long> estateIds = estates.stream()
+                .map(Estate::getEstateId)
+                .toList();
+
+        Map<Long, RedisEstatePrice> estatePriceMap = estateRedisServiceImpl.getMultipleRedisEstatePrice(estateIds);
+
         return estates.stream()
                 .map(estate -> {
-                    Long estateId = estate.getEstateId();
-                    RedisEstatePrice price = estateRedisServiceImpl.getRedisEstatePrice(estateId);
+
+                    RedisEstatePrice price = estatePriceMap.get(estate.getEstateId());
 
                     return GetEstateSimpleResponse.builder()
-                            .estateId(estateId)
+                            .estateId(estate.getEstateId())
                             .estateName(estate.getEstateName())
                             .estateState(estate.getEstateState())
                             .estateCity(estate.getEstateCity())
@@ -56,6 +64,7 @@ public class EstateServiceImpl implements EstateService {
 
     // 매물 상세내역 조회
     @Override
+    @Transactional(readOnly = true)
     public GetEstateDetailsResponse getTradableEstateDetails(Long estateId) {
         Estate estate = estateRepository.findById(estateId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
@@ -86,15 +95,12 @@ public class EstateServiceImpl implements EstateService {
                 .build();
     }
 
-
+    // 매물 시세 내역 조회
     @Override
     @Transactional(readOnly = true)
     public List<GetEstatePriceResponse> getEstatePriceHistory(Long estateId) {
-        // 1. 매물 존재 여부 확인
-        Estate estate = estateRepository.findById(estateId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
-        // 2. 시세 내역 조회
+        // 시세 내역 조회
         List<EstatePrice> priceList = estatePriceRepository
                 .findAllByEstate_EstateIdOrderByEstatePriceDateDesc(estateId);
 
@@ -102,7 +108,7 @@ public class EstateServiceImpl implements EstateService {
             throw new CustomException(ErrorCode.RESOURCE_NOT_FOUND); // 시세 없음
         }
 
-        // 3. 응답 DTO 변환
+        // 응답 DTO 변환
         return priceList.stream()
                 .map(p -> GetEstatePriceResponse.builder()
                         .estatePrice(p.getEstatePrice())
@@ -113,9 +119,12 @@ public class EstateServiceImpl implements EstateService {
 
     @Transactional
     public void modifyEstateDescription(Long agentId, ModifyEstateRequest request) {
+
         Estate estate = estateRepository.findById(request.getEstateId())
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
+
         estate.updateDescription(request.getEstateDescription());
+
     }
 
 
