@@ -36,9 +36,10 @@ public class EstateServiceImpl implements EstateService {
     private final DividendYieldRepository dividendYieldRepository;
     private static final String REDIS_ESTATE_PRICE_KEY_PREFIX = "estate:price:";
 
+    // 매물 리스트 조회
     @Override
     public List<GetEstateSimpleResponse> getTradableEstates() {
-        List<Estate> estates = estateRepository.findBySubState(SubState.SUCCESS); // ✅ 상태 필터 추가
+        List<Estate> estates = estateRepository.findBySubState(SubState.SUCCESS);
 
         return estates.stream()
                 .map(estate -> {
@@ -48,41 +49,49 @@ public class EstateServiceImpl implements EstateService {
                     return GetEstateSimpleResponse.builder()
                             .estateId(estateId)
                             .estateName(estate.getEstateName())
+                            .estateState(estate.getEstateState())
                             .estateCity(estate.getEstateCity())
                             .tokenAmount(price.getTokenAmount())
                             .estateTokenPrice(price.getEstateTokenPrice())
+                            .dividendYield(price.getDividendYield()) // BigDecimal 기준
                             .estateRegistrationDate(estate.getEstateRegistrationDate())
                             .build();
                 })
                 .collect(Collectors.toList());
     }
 
-
+    // 매물 상세내역 조회
     @Override
     public GetEstateDetailsResponse getTradableEstateDetails(Long estateId) {
         Estate estate = estateRepository.findById(estateId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
-        EstatePrice price = estatePriceRepository
-                .findTopByEstate_EstateIdOrderByEstatePriceDateDesc(estateId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
+        RedisEstatePrice price = getRedisEstatePrice(estateId);
 
         return GetEstateDetailsResponse.builder()
                 .estateId(estate.getEstateId())
                 .agentId(estate.getAgent().getAgentId())
                 .agentName(estate.getAgent().getAgentName())
                 .estateName(estate.getEstateName())
+                .estateState(estate.getEstateState())
+                .estateCity(estate.getEstateCity())
                 .estateAddress(estate.getEstateAddress())
+                .estateLatitude(estate.getEstateLatitude())
+                .estateLongitude(estate.getEstateLongitude())
                 .tokenAmount(estate.getTokenAmount())
                 .estateDescription(estate.getEstateDescription())
+                .totalEstateArea(estate.getTotalEstateArea())
+                .tradedEstateArea(estate.getTradedEstateArea())
                 .subGuideUrl(estate.getSubGuideUrl())
                 .securitiesReportUrl(estate.getSecuritiesReportUrl())
                 .investmentExplanationUrl(estate.getInvestmentExplanationUrl())
                 .propertyMngContractUrl(estate.getPropertyMngContractUrl())
                 .appraisalReportUrl(estate.getAppraisalReportUrl())
-                .estateTokenPrice(price.getEstatePrice())
+                .estateTokenPrice(price.getEstateTokenPrice())
+                .dividendYield(price.getDividendYield())
                 .build();
     }
+
 
     @Override
     @Transactional(readOnly = true)
@@ -148,7 +157,7 @@ public class EstateServiceImpl implements EstateService {
                 .estatePrice(estatePrice)
                 .estateTokenPrice(estateTokenPrice)
                 .tokenAmount(tokenCount)
-                .dividendYield(dividend.intValue())  // Integer로 변환
+                .dividendYield(dividend)  // Integer로 변환
                 .build();
 
         // 4. Redis 캐싱 후 반환

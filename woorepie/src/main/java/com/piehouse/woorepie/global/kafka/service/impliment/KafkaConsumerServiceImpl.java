@@ -1,6 +1,7 @@
 package com.piehouse.woorepie.global.kafka.service.impliment;
 
 import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
+import com.piehouse.woorepie.global.kafka.dto.SubscriptionRequestEvent;
 import com.piehouse.woorepie.global.kafka.service.KafkaConsumerService;
 import com.piehouse.woorepie.trade.service.TradeRedisService;
 import lombok.RequiredArgsConstructor;
@@ -34,5 +35,13 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
             // 매도 주문
             tradeRedisService.matchNewSellOrder(event);
         }
+    }
+
+    @Override
+    @KafkaListener(topics = "subscription.request", groupId = "subscription-group")
+    public void consumeSubscriptionRequest(SubscriptionRequestEvent event) {
+        log.info("청약 요청 수신: customerId={}, estateId={}, amount={}, subscribeDate={}",
+                event.getCustomerId(), event.getEstateId(), event.getAmount(), event.getSubscribeDate());
+        // 토큰 체크 및 결과 처리)은 이후에 구현
     }
 }

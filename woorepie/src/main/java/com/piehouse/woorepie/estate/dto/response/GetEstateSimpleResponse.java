@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Builder
@@ -15,13 +16,16 @@ public class GetEstateSimpleResponse {
 
     private String estateName;
 
+    private String estateState;
+
     private String estateCity;
 
     private Integer tokenAmount;
 
     private Integer estateTokenPrice;
 
+    private BigDecimal dividendYield;
+
     private LocalDateTime estateRegistrationDate;
 
 }
-

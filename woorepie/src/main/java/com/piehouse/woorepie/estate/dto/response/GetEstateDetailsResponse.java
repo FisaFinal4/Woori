@@ -3,6 +3,8 @@ package com.piehouse.woorepie.estate.dto.response;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.math.BigDecimal;
+
 @Getter
 @Builder
 public class GetEstateDetailsResponse {
@@ -15,11 +17,23 @@ public class GetEstateDetailsResponse {
 
     private String estateName;
 
+    private String estateState;
+
+    private String estateCity;
+
     private String estateAddress;
+
+    private String estateLatitude;
+
+    private String estateLongitude;
 
     private Integer tokenAmount;
 
     private String estateDescription;
+
+    private BigDecimal totalEstateArea;
+
+    private BigDecimal tradedEstateArea;
 
     private String subGuideUrl;
 
@@ -32,5 +46,7 @@ public class GetEstateDetailsResponse {
     private String appraisalReportUrl;
 
     private Integer estateTokenPrice;
-    
+
+    private BigDecimal dividendYield;
+
 }

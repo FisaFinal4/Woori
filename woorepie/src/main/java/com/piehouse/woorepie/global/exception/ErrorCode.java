@@ -12,6 +12,8 @@ public enum ErrorCode {
     SMS_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "인증 코드가 만료되었거나 존재하지 않습니다."),
     ALREADY_REGISTERED_EMAIL(HttpStatus.BAD_REQUEST, "이미 등록된 이메일입니다."),
     ALREADY_REGISTERED_PHONE_NUMBER(HttpStatus.BAD_REQUEST, "이미 등록된 전화번호입니다."),
+    SUBSCRIPTION_PERIOD_INVALID(HttpStatus.BAD_REQUEST, "청약 가능 기간이 아닙니다."),
+    TOKEN_INSUFFICIENT(HttpStatus.BAD_REQUEST, "남은 토큰이 부족합니다."),
 
     // 401: 인증 실패
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "로그인 정보가 일치하지 않습니다."),
