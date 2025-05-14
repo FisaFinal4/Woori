@@ -99,5 +99,12 @@ public class Estate {
         return this;
     }
 
+    public void updateSubStateToSuccess() {
+        this.subState = SubState.SUCCESS;
+    }
+
+    public void updateSubStateToExit() {
+        this.subState = SubState.EXIT;
+    }
 
 }

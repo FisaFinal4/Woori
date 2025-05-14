@@ -66,4 +66,10 @@ public class Customer {
         }
         this.accountBalance -= amount;
     }
+
+    // 계좌 잔액 에 배당금 추가
+    public void setAccountBalance(int accountBalance) {
+        this.accountBalance = accountBalance;
+    }
+
 }
