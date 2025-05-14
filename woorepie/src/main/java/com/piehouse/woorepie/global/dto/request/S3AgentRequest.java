@@ -1,4 +1,4 @@
-package com.piehouse.woorepie.agent.dto.request;
+package com.piehouse.woorepie.global.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -7,16 +7,10 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class LoginAgentRequest {
+public class S3AgentRequest {
 
+    @NotBlank
     @Email
-    @NotBlank
     private String agentEmail;
-
-    @NotBlank
-    private String agentPassword;
-
-    @NotBlank
-    private String agentPhoneNumber;
 
 }
