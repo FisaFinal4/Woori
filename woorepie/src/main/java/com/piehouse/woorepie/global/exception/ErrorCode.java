@@ -12,6 +12,7 @@ public enum ErrorCode {
     SMS_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "인증 코드가 만료되었거나 존재하지 않습니다."),
     ALREADY_REGISTERED_EMAIL(HttpStatus.BAD_REQUEST, "이미 등록된 이메일입니다."),
     ALREADY_REGISTERED_PHONE_NUMBER(HttpStatus.BAD_REQUEST, "이미 등록된 전화번호입니다."),
+    SUBSCRIPTION_PERIOD_INVALID(HttpStatus.BAD_REQUEST, "청약 가능 기간이 아닙니다."),
     TOKEN_INSUFFICIENT(HttpStatus.BAD_REQUEST, "남은 토큰이 부족합니다."),
 
     // 401: 인증 실패
@@ -33,8 +34,7 @@ public enum ErrorCode {
     ACCOUNT_NUMBER_DUPLICATED(HttpStatus.CONFLICT, "계좌번호 생성 실패: 중복 발생"),
 
     // 500: 서버 에러
-    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
-    REDIS_OPERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Redis 연산 실패했습니다.");
+    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
 
     private final HttpStatus httpStatus;
     private final String message;

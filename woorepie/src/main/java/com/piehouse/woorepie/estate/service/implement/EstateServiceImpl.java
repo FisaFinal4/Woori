@@ -36,28 +36,38 @@ public class EstateServiceImpl implements EstateService {
     private final DividendYieldRepository dividendYieldRepository;
     private static final String REDIS_ESTATE_PRICE_KEY_PREFIX = "estate:price:";
 
+    // 거래 가능한 매물 리스트 조회
     @Override
     public List<GetEstateSimpleResponse> getTradableEstates() {
-        List<Estate> estates = estateRepository.findBySubState(SubState.SUCCESS); // ✅ 상태 필터 추가
+        List<Estate> estates = estateRepository.findBySubState(SubState.SUCCESS);
 
         return estates.stream()
                 .map(estate -> {
                     Long estateId = estate.getEstateId();
-                    RedisEstatePrice price = getRedisEstatePrice(estateId);
+
+                    EstatePrice price = estatePriceRepository
+                            .findTopByEstate_EstateIdOrderByEstatePriceDateDesc(estateId)
+                            .orElse(null);
+
+                    DividendYield yield = dividendYieldRepository
+                            .findTopByEstate_EstateIdOrderByDividendYieldDateDesc(estateId)
+                            .orElse(null);
 
                     return GetEstateSimpleResponse.builder()
                             .estateId(estateId)
                             .estateName(estate.getEstateName())
+                            .estateState(estate.getEstateState())
                             .estateCity(estate.getEstateCity())
-                            .tokenAmount(price.getTokenAmount())
-                            .estateTokenPrice(price.getEstateTokenPrice())
+                            .tokenAmount(estate.getTokenAmount())
+                            .estateTokenPrice(price != null ? price.getEstatePrice() : null)
+                            .dividendYield(yield != null ? yield.getDividendYield() : null)
                             .estateRegistrationDate(estate.getEstateRegistrationDate())
                             .build();
                 })
                 .collect(Collectors.toList());
     }
 
-
+    // 매물 상세내역 조회
     @Override
     public GetEstateDetailsResponse getTradableEstateDetails(Long estateId) {
         Estate estate = estateRepository.findById(estateId)
@@ -67,20 +77,32 @@ public class EstateServiceImpl implements EstateService {
                 .findTopByEstate_EstateIdOrderByEstatePriceDateDesc(estateId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
+        // 배당률 0?인 경우 어떻게 할건지 논의 필요..
+        DividendYield yield = dividendYieldRepository
+                .findTopByEstate_EstateIdOrderByDividendYieldDateDesc(estateId)
+                .orElse(null);
+
         return GetEstateDetailsResponse.builder()
                 .estateId(estate.getEstateId())
                 .agentId(estate.getAgent().getAgentId())
                 .agentName(estate.getAgent().getAgentName())
                 .estateName(estate.getEstateName())
+                .estateState(estate.getEstateState())
+                .estateCity(estate.getEstateCity())
                 .estateAddress(estate.getEstateAddress())
+                .estateLatitude(estate.getEstateLatitude())
+                .estateLongitude(estate.getEstateLongitude())
                 .tokenAmount(estate.getTokenAmount())
                 .estateDescription(estate.getEstateDescription())
+                .totalEstateArea(estate.getTotalEstateArea())
+                .tradedEstateArea(estate.getTradedEstateArea())
                 .subGuideUrl(estate.getSubGuideUrl())
                 .securitiesReportUrl(estate.getSecuritiesReportUrl())
                 .investmentExplanationUrl(estate.getInvestmentExplanationUrl())
                 .propertyMngContractUrl(estate.getPropertyMngContractUrl())
                 .appraisalReportUrl(estate.getAppraisalReportUrl())
                 .estateTokenPrice(price.getEstatePrice())
+                .dividendYield(yield != null ? yield.getDividendYield() : null)
                 .build();
     }
 

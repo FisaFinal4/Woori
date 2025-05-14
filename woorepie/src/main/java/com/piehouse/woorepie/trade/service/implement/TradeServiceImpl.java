@@ -28,6 +28,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import com.piehouse.woorepie.subscription.repository.SubscriptionRepository;
 import org.springframework.transaction.support.TransactionTemplate;
+import com.piehouse.woorepie.estate.service.EstateRedisService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -50,6 +51,8 @@ public class TradeServiceImpl implements TradeService {
     private final StringRedisTemplate redisTemplate;
     private final PlatformTransactionManager transactionManager;
     private static final String REMAINING_TOKENS_KEY_FORMAT = "subscription:%s:remaining-tokens";
+    private final EstateRedisService estateRedisService;
+
 
     @Override
     @Transactional
@@ -229,60 +232,66 @@ public class TradeServiceImpl implements TradeService {
                 .sum();
     }
 
-    // 청약 신청
     @Override
     @Transactional
     public int createSubscription(CreateSubscriptionTradeRequest request, Long customerId) {
         Long estateId = request.getEstateId();
         int requestAmount = request.getSubAmount();
+        LocalDateTime now = LocalDateTime.now();
 
-        log.info("[1단계] 청약 신청 시작 - customerId: {}, estateId: {}, 신청수량: {}",
-                customerId, estateId, requestAmount);
+        log.info("[1단계] 청약 신청 시작 - customerId: {}, estateId: {}, 신청수량: {}", customerId, estateId, requestAmount);
 
-        // Redis 스킵 → 이후 구현 예정
+        // ✅ Redis에서 청약 가능 토큰 수 조회
+        int remainingTokens = estateRedisService.getRemainingTokens(String.valueOf(estateId));
+        if (remainingTokens < requestAmount) {
+            log.warn("청약 가능 토큰 부족 - 요청: {}, 남은 수량: {}", requestAmount, remainingTokens);
+            throw new CustomException(ErrorCode.TOKEN_INSUFFICIENT);
+        }
 
-        // 2단계: PostgreSQL에서 계좌 조회
+        // ✅ PostgreSQL 계좌 및 매물 조회
         Account account = accountRepository.findByCustomer_CustomerIdAndEstate_EstateId(customerId, estateId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NON_EXIST));
+        Estate estate = account.getEstate();
 
-        Estate estate = account.getEstate();  // Account → Estate 연결
+        // ✅ 청약 기간 확인
+        LocalDateTime subStart = estate.getSubStartDate();
+        LocalDateTime subEnd = estate.getSubEndDate();
+        if (subStart == null || subEnd == null || now.isBefore(subStart) || now.isAfter(subEnd)) {
+            throw new CustomException(ErrorCode.SUBSCRIPTION_PERIOD_INVALID);
+        }
 
-        // 3단계: EstatePrice에서 최신 시세 조회
+        // ✅ 시세 조회 및 토큰당 가격 계산
         EstatePrice latestPrice = estatePriceRepository
                 .findTopByEstate_EstateIdOrderByEstatePriceDateDesc(estateId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
-
         int estatePriceValue = latestPrice.getEstatePrice();
         int tokenAmount = estate.getTokenAmount();
 
         if (tokenAmount == 0) {
-            throw new CustomException(ErrorCode.INTERNAL_ERROR); // 0으로 나눌 수 없음
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
 
-        // 4단계: 토큰당 가격 계산 및 청약금액 계산
         int tokenPrice = estatePriceValue / tokenAmount;
         int requiredCash = requestAmount * tokenPrice;
         int userBalance = account.getTotalAccountAmount();
-
-        log.info("[2단계] 토큰당 가격 계산 완료 - 총 시세: {}, 총 토큰수: {}, 토큰가격: {}",
-                estatePriceValue, tokenAmount, tokenPrice);
-        log.info("[3단계] 고객 잔액: {}, 청약필요금액: {}", userBalance, requiredCash);
 
         if (userBalance < requiredCash) {
             throw new CustomException(ErrorCode.INSUFFICIENT_CASH);
         }
 
-        // 5단계: Kafka 메시지 전송
+        // ✅ Kafka 전송
         kafkaProducerService.sendSubscriptionRequest(
                 SubscriptionRequestEvent.builder()
                         .customerId(customerId)
                         .estateId(estateId)
                         .amount(requestAmount)
-                        .subscribeDate(LocalDateTime.now())
+                        .subscribeDate(now)
                         .build()
         );
+
         return requestAmount;
     }
+
 
     // 청약 신청 처리 로직
     @Transactional
@@ -333,5 +342,6 @@ public class TradeServiceImpl implements TradeService {
             return null;
         });
     }
+
 }
 
