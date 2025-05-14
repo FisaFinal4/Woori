@@ -35,7 +35,6 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final EstateRepository estateRepository;
     private final EstatePriceRepository estatePriceRepository;
     private final AgentRepository agentRepository;
-    private final EstateServiceImpl estateServiceImpl;
     private final EstateRedisServiceImpl  estateRedisServiceImpl;
     private final DividendRepository dividendRepository;
     private final S3ServiceImpl s3serviceImpl;

@@ -299,30 +299,38 @@ public class CustomerServiceImpl implements CustomerService {
                 .distinct()
                 .toList();
 
+        Map<Long, RedisEstatePrice> estatePriceMap = estateRedisServiceImpl.getMultipleRedisEstatePrice(estateIds);
+
         // Seller 거래
         List<GetCustomerTradeResponse> sellerTradeResponses  = sellerTrades.stream()
-                .map(trade -> GetCustomerTradeResponse.builder()
-                        .tradeId(trade.getTradeId())
-                        .estateId(trade.getEstate().getEstateId())
-                        .estateName(trade.getEstate().getEstateName())
-                        .tradeTokenAmount(trade.getTradeTokenAmount())
-                        .tradeTokenPrice(estateRedisServiceImpl.getRedisEstatePrice(trade.getEstate().getEstateId()).getEstateTokenPrice() * trade.getTradeTokenAmount())
-                        .tradeDate(trade.getTradeDate())
-                        .tradeType("매도")
-                        .build())
+                .map(trade -> {
+                    RedisEstatePrice price = estatePriceMap.get(trade.getEstate().getEstateId());
+                    return GetCustomerTradeResponse.builder()
+                            .tradeId(trade.getTradeId())
+                            .estateId(trade.getEstate().getEstateId())
+                            .estateName(trade.getEstate().getEstateName())
+                            .tradeTokenAmount(trade.getTradeTokenAmount())
+                            .tradeTokenPrice(price.getEstateTokenPrice() * trade.getTradeTokenAmount())
+                            .tradeDate(trade.getTradeDate())
+                            .tradeType("매도")
+                            .build();
+                })
                 .toList();
 
         // Buyer 거래
         List<GetCustomerTradeResponse> buyerTradeResponses = buyerTrades.stream()
-                .map(trade -> GetCustomerTradeResponse.builder()
-                        .tradeId(trade.getTradeId())
-                        .estateId(trade.getEstate().getEstateId())
-                        .estateName(trade.getEstate().getEstateName())
-                        .tradeTokenAmount(trade.getTradeTokenAmount())
-                        .tradeTokenPrice(estateRedisServiceImpl.getRedisEstatePrice(trade.getEstate().getEstateId()).getEstateTokenPrice() * trade.getTradeTokenAmount())
-                        .tradeDate(trade.getTradeDate())
-                        .tradeType("매수")
-                        .build())
+                .map(trade -> {
+                    RedisEstatePrice price = estatePriceMap.get(trade.getEstate().getEstateId());
+                    return GetCustomerTradeResponse.builder()
+                            .tradeId(trade.getTradeId())
+                            .estateId(trade.getEstate().getEstateId())
+                            .estateName(trade.getEstate().getEstateName())
+                            .tradeTokenAmount(trade.getTradeTokenAmount())
+                            .tradeTokenPrice(price.getEstateTokenPrice() * trade.getTradeTokenAmount())
+                            .tradeDate(trade.getTradeDate())
+                            .tradeType("매수")
+                            .build();
+                })
                 .toList();
 
         // 두 리스트 합치기

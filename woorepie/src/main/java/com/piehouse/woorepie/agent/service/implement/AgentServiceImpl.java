@@ -43,7 +43,7 @@ public class AgentServiceImpl implements AgentService {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        if (!agent.getAgentPhoneNumber().equals(agent.getAgentPhoneNumber())) {
+        if (!agent.getAgentPhoneNumber().equals(agentRequest.getAgentPhoneNumber())) {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 

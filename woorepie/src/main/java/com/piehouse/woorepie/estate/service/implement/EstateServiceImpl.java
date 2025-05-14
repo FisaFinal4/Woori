@@ -26,7 +26,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class EstateServiceImpl implements EstateService {
 
-    private final RedisTemplate<String, Object> redisObjectTemplate;
     private final EstateRepository estateRepository;
     private final EstatePriceRepository estatePriceRepository;
     private final EstateRedisServiceImpl estateRedisServiceImpl;

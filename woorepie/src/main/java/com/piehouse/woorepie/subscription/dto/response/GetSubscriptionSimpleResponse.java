@@ -15,9 +15,13 @@ public class GetSubscriptionSimpleResponse {
 
     private String estateName;
 
+    private Long agentId;
+
     private String agentName;
 
     private LocalDateTime subStartDate;
+
+    private LocalDateTime subEndDate;
 
     private String estateState;
 

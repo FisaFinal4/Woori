@@ -11,6 +11,7 @@ import com.piehouse.woorepie.estate.service.EstateRedisService;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class EstateRedisServiceImpl implements EstateRedisService {
+
     private final RedisTemplate<String, String> redisStringTemplate;
     private final RedisTemplate<String, Object> redisObjectTemplate;
     private final EstateRepository estateRepository;
