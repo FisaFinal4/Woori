@@ -9,6 +9,7 @@ import com.piehouse.woorepie.agent.repository.AgentRepository;
 import com.piehouse.woorepie.agent.service.AgentService;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
+import com.piehouse.woorepie.global.service.implement.S3ServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -29,8 +31,10 @@ public class AgentServiceImpl implements AgentService {
 
     private final AgentRepository agentRepository;
     private final PasswordEncoder passwordEncoder;
+    private final S3ServiceImpl s3Service;
 
     @Override
+    @Transactional(readOnly = true)
     public void loginAgent(LoginAgentRequest agentRequest, HttpServletRequest request) {
         Agent agent = agentRepository.findByAgentEmail(agentRequest.getAgentEmail())
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
@@ -39,29 +43,25 @@ public class AgentServiceImpl implements AgentService {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        if (!agent.getAgentPhoneNumber().equals(agent.getAgentPhoneNumber())) {
+        if (!agent.getAgentPhoneNumber().equals(agentRequest.getAgentPhoneNumber())) {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        try {
-            SessionAgent principal = SessionAgent.fromAgent(agent);
-            Authentication auth = new UsernamePasswordAuthenticationToken(
-                    principal,
-                    null,
-                    principal.getAuthorities()
-            );
+        SessionAgent principal = SessionAgent.fromAgent(agent);
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                principal,
+                null,
+                principal.getAuthorities()
+        );
 
-            SecurityContext context = SecurityContextHolder.getContext();
-            context.setAuthentication(auth);
+        SecurityContext context = SecurityContextHolder.getContext();
+        context.setAuthentication(auth);
 
-            HttpSession session = request.getSession(true);
-            session.setAttribute(
-                    HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
-                    context
-            );
-        }catch (Exception e) {
-            throw new CustomException(ErrorCode.INTERNAL_ERROR);
-        }
+        HttpSession session = request.getSession(true);
+        session.setAttribute(
+                HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                context
+        );
 
     }
 
@@ -81,35 +81,35 @@ public class AgentServiceImpl implements AgentService {
     }
 
     @Override
+    @Transactional
     public void createAgent(CreateAgentRequest agentRequest, HttpServletRequest request) {
         if (agentRepository.existsByAgentEmail(agentRequest.getAgentEmail()) ||
                 agentRepository.existsByAgentPhoneNumber(agentRequest.getAgentPhoneNumber())) {
             throw new CustomException(ErrorCode.DUPLICATE_RESOURCE);
         }
 
-        try {
-            Agent agent = Agent.builder()
-                    .agentName(agentRequest.getAgentName())
-                    .agentEmail(agentRequest.getAgentEmail())
-                    .agentPassword(passwordEncoder.encode(agentRequest.getAgentPassword()))
-                    .agentPhoneNumber(agentRequest.getAgentPhoneNumber())
-                    .agentDateOfBirth(agentRequest.getAgentDateOfBirth())
-                    .agentIdentificationUrl(agentRequest.getAgentIdentificationUrl())
-                    .agentCertUrl(agentRequest.getAgentCertUrl())
-                    .businessName(agentRequest.getBusinessName())
-                    .businessNumber(agentRequest.getBusinessNumber())
-                    .businessPhoneNumber(agentRequest.getBusinessPhoneNumber())
-                    .businessAddress(agentRequest.getBusinessAddress())
-                    .warrantUrl(agentRequest.getWarrantUrl())
-                    .agentKyc(UUID.randomUUID().toString())
-                    .build();
-            agentRepository.save(agent);
-        } catch (CustomException e) {
-            throw new CustomException(ErrorCode.INTERNAL_ERROR);
-        }
+        Agent agent = Agent.builder()
+                .agentName(agentRequest.getAgentName())
+                .agentEmail(agentRequest.getAgentEmail())
+                .agentPassword(passwordEncoder.encode(agentRequest.getAgentPassword()))
+                .agentPhoneNumber(agentRequest.getAgentPhoneNumber())
+                .agentDateOfBirth(agentRequest.getAgentDateOfBirth())
+                .agentIdentificationUrl(s3Service.getPublicS3Url(agentRequest.getAgentIdentificationUrlKey()))
+                .agentCertUrl(s3Service.getPublicS3Url(agentRequest.getAgentCertUrlKey()))
+                .businessName(agentRequest.getBusinessName())
+                .businessNumber(agentRequest.getBusinessNumber())
+                .businessPhoneNumber(agentRequest.getBusinessPhoneNumber())
+                .businessAddress(agentRequest.getBusinessAddress())
+                .warrantUrl(s3Service.getPublicS3Url(agentRequest.getWarrantUrlKey()))
+                .agentKyc(UUID.randomUUID().toString())
+                .build();
+        agentRepository.save(agent);
+
     }
+
     // agent 정보 조회
     @Override
+    @Transactional(readOnly = true)
     public GetAgentResponse getAgentInfo(Long agentId) {
         Agent agent = agentRepository.findById(agentId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));

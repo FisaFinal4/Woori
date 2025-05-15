@@ -29,6 +29,7 @@ public class NoticeServiceImpl implements NoticeService {
     @Override
     @Transactional
     public void create(CreateNoticeRequest request, Long agentId) {
+
         Estate estate = estateRepository.findById(request.getEstateId())
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
@@ -39,14 +40,15 @@ public class NoticeServiceImpl implements NoticeService {
                 .noticeFileUrl(request.getNoticeFileUrl())
                 .noticeDate(LocalDateTime.now())
                 .build();
-
         noticeRepository.save(notice);
+
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<GetNoticeSimpleResponse> getNoticeList() {
-        List<Notice> noticeList = noticeRepository.findAllByOrderByNoticeDateDesc();
+
+        List<Notice> noticeList = noticeRepository.findAllWithEstateOrderByNoticeDateDesc();
 
         return noticeList.stream()
                 .map(notice -> GetNoticeSimpleResponse.builder()
@@ -58,12 +60,14 @@ public class NoticeServiceImpl implements NoticeService {
                         .build()
                 )
                 .collect(Collectors.toList());
+
     }
 
 
     @Override
     @Transactional(readOnly = true)
     public GetNoticeDetailsResponse getNoticeDetails(Long noticeId) {
+
         Notice notice = noticeRepository.findById(noticeId)
                 .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
 
@@ -76,11 +80,13 @@ public class NoticeServiceImpl implements NoticeService {
                 .noticeFileUrl(notice.getNoticeFileUrl())
                 .noticeDate(notice.getNoticeDate())
                 .build();
+
     }
 
     @Override
     @Transactional
     public void modifyNotice(Long noticeId, ModifyNoticeRequest request, Long agentId) {
+
         Notice notice = noticeRepository.findById(noticeId)
                 .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
 
@@ -89,5 +95,7 @@ public class NoticeServiceImpl implements NoticeService {
                 request.getNoticeContent(),
                 request.getNoticeFileUrl()
         );
+
     }
+
 }

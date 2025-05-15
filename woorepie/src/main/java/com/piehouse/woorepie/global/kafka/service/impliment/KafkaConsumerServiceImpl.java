@@ -4,13 +4,13 @@ import com.piehouse.woorepie.customer.entity.Account;
 import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
-import com.piehouse.woorepie.estate.entity.DividendYield;
+import com.piehouse.woorepie.estate.entity.Dividend;
 import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.estate.entity.EstatePrice;
-import com.piehouse.woorepie.estate.repository.DividendYieldRepository;
+import com.piehouse.woorepie.estate.repository.DividendRepository;
 import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
 import com.piehouse.woorepie.estate.repository.EstateRepository;
-import com.piehouse.woorepie.estate.service.EstateRedisService;
+import com.piehouse.woorepie.estate.service.implement.EstateRedisServiceImpl;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.global.kafka.dto.*;
@@ -19,7 +19,6 @@ import com.piehouse.woorepie.trade.service.TradeRedisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,21 +32,14 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class KafkaConsumerServiceImpl implements KafkaConsumerService {
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
     private final TradeRedisService tradeRedisService;
-    private final EstateRedisService estateRedisService;
+    private final EstateRedisServiceImpl estateRedisServiceImpl;
     private final EstateRepository estateRepository;
     private final AccountRepository accountRepository;
-    private final DividendYieldRepository dividendYieldRepository;
+    private final DividendRepository dividendRepository;
     private final EstatePriceRepository estatePriceRepository;
     private final CustomerRepository customerRepository;
 
-
-    @Override
-    @KafkaListener(topics = "test", groupId = "group-test")
-    public void listenToTopicTest(String message) {
-        System.out.println("Received from topic-test: " + message);
-    }
 
     @Override
     @KafkaListener(topics = "order.created", groupId = "group-order")
@@ -74,41 +66,38 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
     @KafkaListener(topics = "subscription.accept", groupId = "estate-consumer")
     @Transactional
     public void handleSubscriptionApproval(SubscriptionAcceptMessage message) {
-        Long estateId = message.getEstateId();
-        log.info("✅ [Kafka] 청약 승인 수신 - estateId: {}, 승인 고객 수: {}", estateId, message.getCustomer().size());
+        log.info("[Kafka] 청약 승인 수신");
 
-        // 1. 매물 조회
-        Estate estate = estateRepository.findById(estateId)
+        Estate estate = estateRepository.findById(message.getEstateId())
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
-        // 2. 승인된 고객 목록 처리
-        message.getCustomer().forEach(customer -> {
-            Long customerId = customer.getCustomerId();
-            Integer tokenPrice = customer.getTokenPrice();
-            Integer tokenAmount = customer.getTradeTokenAmount();
+        message.getSubCustomer().forEach(subCustomer -> {
 
-            // 고객 조회
-            Customer customerEntity = customerRepository.findById(customerId)
+            Customer customer = customerRepository.findById(subCustomer.getCustomerId())
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+            Integer tokenPrice = subCustomer.getTokenPrice();
+            Integer tokenAmount = subCustomer.getTradeTokenAmount();
+
             // 계좌 조회: 존재 시 update, 없으면 새로 생성
-            Optional<Account> optionalAccount = accountRepository.findByCustomerAndEstate(customerEntity, estate);
+            Optional<Account> optionalAccount = accountRepository.findByCustomerAndEstate(customer, estate);
 
             if (optionalAccount.isPresent()) {
-                // ✅ 계좌 존재 시 업데이트
+                // 계좌 존재 시 업데이트
                 Account account = optionalAccount.get();
 
                 int newTokenAmount = account.getAccountTokenAmount() + tokenAmount;
-                int newTotalAmount = account.getTotalAccountAmount() + (tokenAmount * tokenPrice);
-
                 account.updateTokenAmount(newTokenAmount);
+
+                int newTotalAmount = account.getTotalAccountAmount() + (tokenAmount * tokenPrice);
                 account.updateTotalAmount(newTotalAmount);
+
                 accountRepository.save(account);
 
             } else {
-                // ✅ 계좌가 없으면 신규 생성
+                // 계좌가 없으면 신규 생성
                 Account newAccount = Account.builder()
-                        .customer(customerEntity)
+                        .customer(customer)
                         .estate(estate)
                         .accountTokenAmount(tokenAmount)
                         .totalAccountAmount(tokenAmount * tokenPrice)
@@ -117,37 +106,43 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
             }
         });
 
-        // 3. 매물 상태 변경 → SUCCESS
+        // 매물 상태 변경 → SUCCESS
         estate.updateSubStateToSuccess();
         estateRepository.save(estate);
 
-        log.info("✅ 청약 승인 처리 완료 - estateId: {}", estateId);
     }
-
 
     // 배당금 승인 로직
     @Override
     @KafkaListener(topics = "dividen.accept", groupId = "estate-consumer")
     @Transactional
     public void handleDividendApproval(DividendAcceptMessage message) {
+
+        log.info("[Kafka] 배당금 승인 수신");
+
         Long estateId = message.getEstateId();
-        BigDecimal dividendYield = message.getDividendYield();
+        Integer dividend = message.getDividend();
 
-        log.info("📥 [Kafka] 배당 승인 수신 - estateId: {}, dividendYield: {}", estateId, dividendYield);
-
-        // 1. 매물 존재 확인
         Estate estate = estateRepository.findById(estateId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
-        // 2. 배당률 저장
-        DividendYield record = DividendYield.builder()
+        BigDecimal dividendYield = new BigDecimal(dividend)
+                .divide(new BigDecimal(estateRedisServiceImpl.getRedisEstatePrice(estateId).getEstateTokenPrice()), 4, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal(100));
+
+        // 배당률 저장
+        Dividend record = Dividend.builder()
                 .estate(estate)
+                .dividend(dividend)
                 .dividendYield(dividendYield)
                 .build();
-        dividendYieldRepository.save(record);
+        dividendRepository.save(record);
 
-        // 3. 해당 estate를 보유한 계좌 전체 조회
-        List<Account> accounts = accountRepository.findByEstate(estate);
+        // 레디스에서 과거 매물 정보 삭제
+        estateRedisServiceImpl.deleteRedisEstatePrice(estateId);
+
+        // 해당 estate를 보유한 계좌 전체 조회
+        List<Account> accounts = accountRepository.findByEstateWithCustomer(estate);
 
         for (Account account : accounts) {
             int tokenAmount = account.getAccountTokenAmount();
@@ -162,7 +157,7 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
             customer.setAccountBalance(updatedBalance);
         }
 
-        log.info("✅ 배당금 지급 완료 - estateId: {}, 대상 계좌 수: {}", estateId, accounts.size());
+        log.info("배당금 지급 완료 - estateId: {}, 대상 계좌 수: {}", estateId, accounts.size());
     }
 
     // 매물 매각 승인 로직
@@ -188,7 +183,7 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
         int estatePrice = latestPrice.getEstatePrice();
 
         // 4. 계좌 조회
-        List<Account> accounts = accountRepository.findByEstate(estate);
+        List<Account> accounts = accountRepository.findByEstateWithCustomer(estate);
 
         for (Account account : accounts) {
             int tokenAmount = account.getAccountTokenAmount();
@@ -203,7 +198,7 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
             account.updateTokenAmount(0);
         }
 
-        log.info("✅ 매각 환불 및 상태 처리 완료 - estateId: {}\", estateId");
+        log.info("매각 환불 및 상태 처리 완료");
     }
 
 }

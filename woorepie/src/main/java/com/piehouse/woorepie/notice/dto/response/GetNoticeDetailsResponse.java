@@ -2,11 +2,11 @@ package com.piehouse.woorepie.notice.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 
-@Data
+@Getter
 @Builder
 @AllArgsConstructor
 public class GetNoticeDetailsResponse {

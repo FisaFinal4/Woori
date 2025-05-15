@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -11,6 +12,7 @@ import java.time.LocalDate;
 
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
 public class CreateCustomerRequest {
 
     @NotBlank(message = "customerName은 필수입니다.")
@@ -33,7 +35,7 @@ public class CreateCustomerRequest {
     @NotNull(message = "customerDateOfBirth은 필수입니다.")
     private LocalDate customerDateOfBirth;
 
-    @NotBlank(message = "customerIdentificationUrl은 필수입니다.")
-    private String customerIdentificationUrl;
+    @NotBlank(message = "customerIdentificationUrlKey은 필수입니다.")
+    private String customerIdentificationUrlKey;
 
 }

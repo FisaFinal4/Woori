@@ -26,13 +26,16 @@ public class SecurityConfig {
                                 "/customer/create",
                                 "/sms/**",
                                 "/agent/create",
-                                "/agent/login"
+                                "/agent/login",
+                                "/s3-presigned-url/customer",
+                                "/s3-presigned-url/agent"
                         ).permitAll()
                         .requestMatchers(
                                 "/customer/**"
                         ).hasRole("CUSTOMER")
                         .requestMatchers(
-                                "/agent/**"
+                                "/agent/**",
+                                "s3-presigned-url/estate"
                         ).hasRole("AGENT")
 //                        .requestMatchers("**").permitAll()
                         .anyRequest().authenticated()

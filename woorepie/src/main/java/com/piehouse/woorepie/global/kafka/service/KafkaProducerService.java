@@ -5,8 +5,6 @@ import com.piehouse.woorepie.global.kafka.dto.SubscriptionRequestEvent;
 import com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent;
 import com.piehouse.woorepie.global.kafka.dto.CustomerCreatedEvent;
 
-import java.time.LocalDateTime;
-
 public interface KafkaProducerService {
 
     void sendTransactionCreated(TransactionCreatedEvent event); // 거래 체결 완료 이벤트
@@ -15,7 +13,6 @@ public interface KafkaProducerService {
 
     void sendCustomerCreated(CustomerCreatedEvent event); // 회원가입 완료 이벤트
 
-    // KafkaProducerService.java
     void sendSubscriptionRequest(SubscriptionRequestEvent event);
 
 

@@ -8,9 +8,9 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class SmsCodeRequest {
+public class S3EstateRequest {
 
     @NotBlank
-    private String phoneNumber;
+    private String estateAddress;
 
 }

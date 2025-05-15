@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Builder(toBuilder = true)
 @ToString(exclude = "estate")
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class DividendYield {
+public class Dividend {
 
     @EqualsAndHashCode.Include
     @Id
@@ -25,6 +25,9 @@ public class DividendYield {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "estate_id", nullable = false)
     private Estate estate;
+
+    @Column(nullable = false)
+    private Integer dividend;
 
     @Column(nullable = false)
     private BigDecimal dividendYield;

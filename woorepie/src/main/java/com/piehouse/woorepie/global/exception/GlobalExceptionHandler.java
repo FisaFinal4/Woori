@@ -3,6 +3,7 @@ package com.piehouse.woorepie.global.exception;
 import com.piehouse.woorepie.global.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -61,4 +62,18 @@ public class GlobalExceptionHandler {
                 )
         );
     }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingBody(HttpMessageNotReadableException ex, HttpServletRequest request) {
+        return ResponseEntity
+                .badRequest()
+                .body(new ApiResponse<>(
+                        LocalDateTime.now(),
+                        400,
+                        "요청 body가 없습니다.",
+                        request.getRequestURI(),
+                        null
+                ));
+    }
+
 }

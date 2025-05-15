@@ -12,14 +12,16 @@ import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.customer.service.CustomerService;
-import com.piehouse.woorepie.estate.repository.EstateRepository;
-import com.piehouse.woorepie.estate.service.implement.EstateServiceImpl;
+import com.piehouse.woorepie.estate.dto.RedisEstatePrice;
+import com.piehouse.woorepie.estate.service.implement.EstateRedisServiceImpl;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.global.kafka.dto.CustomerCreatedEvent;
 import com.piehouse.woorepie.global.kafka.service.impliment.KafkaProducerServiceImpl;
+import com.piehouse.woorepie.global.service.implement.S3ServiceImpl;
 import com.piehouse.woorepie.subscription.entity.Subscription;
 import com.piehouse.woorepie.subscription.repository.SubscriptionRepository;
+import com.piehouse.woorepie.trade.entity.Trade;
 import com.piehouse.woorepie.trade.repository.TradeRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -37,8 +39,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -48,16 +50,17 @@ public class CustomerServiceImpl implements CustomerService {
     private final CustomerRepository customerRepository;
     private final AccountRepository accountRepository;
     private final SubscriptionRepository subscriptionRepository;
-    private final EstateRepository estateRepository;
     private final TradeRepository tradeRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
-    private final EstateServiceImpl estateServiceImpl;
+    private final EstateRedisServiceImpl estateRedisServiceImpl;
     private final KafkaProducerServiceImpl kafkaProducerServiceImpl;
+    private final S3ServiceImpl s3ServiceImpl;
     private static final int ACCOUNT_NUMBER_LENGTH = 15;
 
     // 로그인
     @Override
+    @Transactional(readOnly = true)
     public void customerLogin(LoginCustomerRequest requestDto, HttpServletRequest request) {
 
         Customer customer = customerRepository.findByCustomerEmail(requestDto.getCustomerEmail())
@@ -110,6 +113,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     //이메일 중복 확인
     @Override
+    @Transactional(readOnly = true)
     public Boolean checkCustomerEmail(String customerEmail) {
 
         if (customerRepository.existsByCustomerEmail(customerEmail)) {
@@ -139,7 +143,7 @@ public class CustomerServiceImpl implements CustomerService {
                 .customerDateOfBirth(requestDto.getCustomerDateOfBirth())
                 .accountNumber(generateUniqueAccountNumber())
                 .customerKyc(UUID.randomUUID().toString())
-                .customerIdentificationUrl(requestDto.getCustomerIdentificationUrl())
+                .customerIdentificationUrl(s3ServiceImpl.getPublicS3Url(requestDto.getCustomerIdentificationUrlKey()))
                 .build();
         customerRepository.save(customer);
 
@@ -181,21 +185,27 @@ public class CustomerServiceImpl implements CustomerService {
 
     // 마이페이지 조회
     @Override
+    @Transactional(readOnly = true)
     public GetCustomerResponse getCustomer(Long customerId) {
 
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        List<Account> accounts = accountRepository.findByCustomer(customer);
+        List<Account> accounts = accountRepository.findByCustomerWithEstate(customer);
+
+        List<Long> estateIds = accounts.stream()
+                .map(account -> account.getEstate().getEstateId())
+                .distinct()
+                .toList();
+
+        Map<Long, RedisEstatePrice> estatePriceMap = estateRedisServiceImpl.getMultipleRedisEstatePrice(estateIds);
 
         //토큰 보유액 계산
         int totalAccountTokenPrice = accounts.stream()
-                .mapToInt(account ->
-                        account.getAccountTokenAmount()
-                                * estateServiceImpl
-                                .getRedisEstatePrice(account.getEstate().getEstateId())
-                                .getEstateTokenPrice()
-                )
+                .mapToInt(account -> {
+                    RedisEstatePrice price = estatePriceMap.get(account.getEstate().getEstateId());
+                    return account.getAccountTokenAmount() * price.getEstateTokenPrice();
+                })
                 .sum();
 
         return GetCustomerResponse.builder()
@@ -212,76 +222,119 @@ public class CustomerServiceImpl implements CustomerService {
 
     // 계좌 내역 조회
     @Override
+    @Transactional(readOnly = true)
     public List<GetCustomerAccountResponse> getCustomerAccount(Long customerId) {
 
-        List<Account> accounts = accountRepository.findByCustomer_CustomerId(customerId);
+        List<Account> accounts = accountRepository.findByCustomerIdWithEstate(customerId);
+
+        List<Long> estateIds = accounts.stream()
+                .map(a -> a.getEstate().getEstateId())
+                .distinct()
+                .toList();
+
+        Map<Long, RedisEstatePrice> estatePriceMap = estateRedisServiceImpl.getMultipleRedisEstatePrice(estateIds);
 
         return accounts.stream()
-                .map(account -> GetCustomerAccountResponse.builder()
+                .map(account -> {
+                    RedisEstatePrice price = estatePriceMap.get(account.getEstate().getEstateId());
+
+                    return GetCustomerAccountResponse.builder()
                         .accountId(account.getAccountId())
                         .estateId(account.getEstate().getEstateId())
                         .estateName(account.getEstate().getEstateName())
                         .accountTokenAmount(account.getAccountTokenAmount())
-                        .accountTokenPrice(estateServiceImpl.getRedisEstatePrice(account.getEstate().getEstateId()).getEstateTokenPrice() * account.getAccountTokenAmount())
-                        .build())
+                        .accountTokenPrice(price.getEstateTokenPrice() * account.getAccountTokenAmount())
+                        .estateTokenPrice(price.getEstateTokenPrice())
+                        .estatePrice(price.getDividendYield())
+                        .build();
+                })
                 .toList();
 
     }
 
     // 쳥약 내역 조회
     @Override
+    @Transactional(readOnly = true)
     public List<GetCustomerSubscriptionResponse> getCustomerSubscription(Long customerId) {
 
-        List<Subscription> subscriptions = subscriptionRepository.findByCustomer_CustomerId(customerId);
+        List<Subscription> subscriptions = subscriptionRepository.findByCustomerIdWithEstate(customerId);
+
+        List<Long> estateIds = subscriptions.stream()
+                .map(subscription -> subscription.getEstate().getEstateId())
+                .distinct()
+                .toList();
+
+        Map<Long, RedisEstatePrice> estatePriceMap = estateRedisServiceImpl.getMultipleRedisEstatePrice(estateIds);
 
         return subscriptions.stream()
-                .map(subscription -> GetCustomerSubscriptionResponse.builder()
-                        .subId(subscription.getSubId())
-                        .estateId(subscription.getEstate().getEstateId())
-                        .estateName(subscription.getEstate().getEstateName())
-                        .subTokenAmount(subscription.getSubTokenAmount())
-                        .subTokenPrice(estateServiceImpl.getRedisEstatePrice(subscription.getEstate().getEstateId()).getEstateTokenPrice() * subscription.getSubTokenAmount())
-                        .subDate(subscription.getSubDate())
-                        .subStatus(subscription.getEstate().getSubState())
-                        .build())
+                .map(subscription -> {
+
+                    RedisEstatePrice price = estatePriceMap.get(subscription.getEstate().getEstateId());
+
+                    return GetCustomerSubscriptionResponse.builder()
+                            .subId(subscription.getSubId())
+                            .estateId(subscription.getEstate().getEstateId())
+                            .estateName(subscription.getEstate().getEstateName())
+                            .subTokenAmount(subscription.getSubTokenAmount())
+                            .subTokenPrice(price.getEstateTokenPrice() * subscription.getSubTokenAmount())
+                            .subDate(subscription.getSubDate())
+                            .subStatus(subscription.getEstate().getSubState())
+                            .build();
+                })
                 .toList();
 
     }
 
     // 거래 내역 조회
     @Override
+    @Transactional(readOnly = true)
     public List<GetCustomerTradeResponse> getCustomerTrade(Long customerId) {
 
+        List<Trade> sellerTrades = tradeRepository.findBySellerIdWithEstate(customerId);
+        List<Trade> buyerTrades = tradeRepository.findByBuyerIdWithEstate(customerId);
+
+        // Redis Bulk 조회
+        List<Long> estateIds = Stream.concat(sellerTrades.stream(), buyerTrades.stream())
+                .map(trade -> trade.getEstate().getEstateId())
+                .distinct()
+                .toList();
+
+        Map<Long, RedisEstatePrice> estatePriceMap = estateRedisServiceImpl.getMultipleRedisEstatePrice(estateIds);
+
         // Seller 거래
-        List<GetCustomerTradeResponse> sellerTrades = tradeRepository.findBySeller_CustomerId(customerId)
-                .stream()
-                .map(trade -> GetCustomerTradeResponse.builder()
-                        .tradeId(trade.getTradeId())
-                        .estateId(trade.getEstate().getEstateId())
-                        .estateName(trade.getEstate().getEstateName())
-                        .tradeTokenAmount(trade.getTradeTokenAmount())
-                        .tradeTokenPrice(estateServiceImpl.getRedisEstatePrice(trade.getEstate().getEstateId()).getEstateTokenPrice() * trade.getTradeTokenAmount())
-                        .tradeDate(trade.getTradeDate())
-                        .tradeType(false)
-                        .build())
+        List<GetCustomerTradeResponse> sellerTradeResponses  = sellerTrades.stream()
+                .map(trade -> {
+                    RedisEstatePrice price = estatePriceMap.get(trade.getEstate().getEstateId());
+                    return GetCustomerTradeResponse.builder()
+                            .tradeId(trade.getTradeId())
+                            .estateId(trade.getEstate().getEstateId())
+                            .estateName(trade.getEstate().getEstateName())
+                            .tradeTokenAmount(trade.getTradeTokenAmount())
+                            .tradeTokenPrice(price.getEstateTokenPrice() * trade.getTradeTokenAmount())
+                            .tradeDate(trade.getTradeDate())
+                            .tradeType("매도")
+                            .build();
+                })
                 .toList();
 
         // Buyer 거래
-        List<GetCustomerTradeResponse> buyerTrades = tradeRepository.findByBuyer_CustomerId(customerId)
-                .stream()
-                .map(trade -> GetCustomerTradeResponse.builder()
-                        .tradeId(trade.getTradeId())
-                        .estateId(trade.getEstate().getEstateId())
-                        .estateName(trade.getEstate().getEstateName())
-                        .tradeTokenAmount(trade.getTradeTokenAmount())
-                        .tradeTokenPrice(estateServiceImpl.getRedisEstatePrice(trade.getEstate().getEstateId()).getEstateTokenPrice() * trade.getTradeTokenAmount())
-                        .tradeDate(trade.getTradeDate())
-                        .tradeType(true)
-                        .build())
+        List<GetCustomerTradeResponse> buyerTradeResponses = buyerTrades.stream()
+                .map(trade -> {
+                    RedisEstatePrice price = estatePriceMap.get(trade.getEstate().getEstateId());
+                    return GetCustomerTradeResponse.builder()
+                            .tradeId(trade.getTradeId())
+                            .estateId(trade.getEstate().getEstateId())
+                            .estateName(trade.getEstate().getEstateName())
+                            .tradeTokenAmount(trade.getTradeTokenAmount())
+                            .tradeTokenPrice(price.getEstateTokenPrice() * trade.getTradeTokenAmount())
+                            .tradeDate(trade.getTradeDate())
+                            .tradeType("매수")
+                            .build();
+                })
                 .toList();
 
         // 두 리스트 합치기
-        List<GetCustomerTradeResponse> tradeResponses = Stream.concat(sellerTrades.stream(), buyerTrades.stream())
+        List<GetCustomerTradeResponse> tradeResponses = Stream.concat(sellerTradeResponses.stream(), buyerTradeResponses.stream())
                 .sorted(Comparator.comparing(GetCustomerTradeResponse::getTradeDate).reversed()) // 최신순 정렬
                 .toList();
 

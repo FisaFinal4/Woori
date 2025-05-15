@@ -7,9 +7,9 @@ import lombok.Getter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@Getter
 @Builder
 @AllArgsConstructor
-@Getter
 public class GetEstateSimpleResponse {
 
     private Long estateId;
@@ -20,11 +20,13 @@ public class GetEstateSimpleResponse {
 
     private String estateCity;
 
+    private String estateImageUrl;
+
+    private BigDecimal dividendYield;
+
     private Integer tokenAmount;
 
     private Integer estateTokenPrice;
-
-    private BigDecimal dividendYield;
 
     private LocalDateTime estateRegistrationDate;
 
