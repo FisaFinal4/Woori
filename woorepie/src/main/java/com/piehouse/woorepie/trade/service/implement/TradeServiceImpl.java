@@ -4,6 +4,7 @@ import com.piehouse.woorepie.customer.entity.Account;
 import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
+import com.piehouse.woorepie.estate.dto.RedisEstatePrice;
 import com.piehouse.woorepie.estate.entity.Estate;
 import com.piehouse.woorepie.estate.entity.EstatePrice;
 import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
@@ -238,52 +239,48 @@ public class TradeServiceImpl implements TradeService {
 
     @Override
     @Transactional
-    public int createSubscription(CreateSubscriptionTradeRequest request, Long customerId) {
+    public void createSubscription(CreateSubscriptionTradeRequest request, Long customerId) {
         Long estateId = request.getEstateId();
         int requestAmount = request.getSubAmount();
         LocalDateTime now = LocalDateTime.now();
 
-        log.info("[1단계] 청약 신청 시작 - customerId: {}, estateId: {}, 신청수량: {}", customerId, estateId, requestAmount);
+        log.info("[청약 신청 시작] customerId: {}, estateId: {}, 신청수량: {}", customerId, estateId, requestAmount);
 
-        // Redis에서 청약 가능 토큰 수 조회
-        int remainingTokens = estateRedisService.getRemainingTokens(String.valueOf(estateId));
-        if (remainingTokens < requestAmount) {
-            log.warn("청약 가능 토큰 부족 - 요청: {}, 남은 수량: {}", requestAmount, remainingTokens);
-            throw new CustomException(ErrorCode.TOKEN_INSUFFICIENT);
-        }
-
-        // PostgreSQL 계좌 및 매물 조회
-        Account account = accountRepository.findByCustomer_CustomerIdAndEstate_EstateId(customerId, estateId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NON_EXIST));
-        Estate estate = account.getEstate();
-
-        // 청약 기간 확인
+        // ✅ 1. PostgreSQL 조회해서 청약 기간 검증
+        Estate estate = estateRepository.findById(estateId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
         LocalDateTime subStart = estate.getSubStartDate();
         LocalDateTime subEnd = estate.getSubEndDate();
         if (subStart == null || subEnd == null || now.isBefore(subStart) || now.isAfter(subEnd)) {
             throw new CustomException(ErrorCode.SUBSCRIPTION_PERIOD_INVALID);
         }
 
-        // 시세 조회 및 토큰당 가격 계산
-        EstatePrice latestPrice = estatePriceRepository
-                .findTopByEstate_EstateIdOrderByEstatePriceDateDesc(estateId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
-        int estatePriceValue = latestPrice.getEstatePrice();
-        int tokenAmount = estate.getTokenAmount();
+        // ✅ 2. Redis에서 1토큰당 가격 조회
+        RedisEstatePrice redisPrice = estateRedisService.getRedisEstatePrice(estateId);
+        int tokenPrice = redisPrice.getEstateTokenPrice();
+        int subscriptionCost = requestAmount * tokenPrice;
 
-        if (tokenAmount == 0) {
-            throw new CustomException(ErrorCode.INTERNAL_ERROR);
-        }
+        // ✅ 3. Redis에서 고객의 기존 매수 요청 금액 조회
+        Set<RedisCustomerTradeValue> orders = redisOrderRepository.getCustomerBuyOrders(customerId);
+        int cumulativeBuyCost = orders == null ? 0 :
+                orders.stream()
+                        .filter(Objects::nonNull)
+                        .mapToInt(o -> o.getTradeTokenAmount() * o.getTokenPrice())
+                        .sum();
 
-        int tokenPrice = estatePriceValue / tokenAmount;
-        int requiredCash = requestAmount * tokenPrice;
+        // ✅ 4. PostgreSQL: 고객 계좌 조회
+        Account account = accountRepository.findByCustomer_CustomerIdAndEstate_EstateId(customerId, estateId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NON_EXIST));
         int userBalance = account.getTotalAccountAmount();
 
-        if (userBalance < requiredCash) {
+        log.info("[청약 검증] customerId: {}, 기존매수금액: {}, 청약금액: {}, 총합: {}, 잔액: {}",
+                customerId, cumulativeBuyCost, subscriptionCost, cumulativeBuyCost + subscriptionCost, userBalance);
+
+        if (userBalance < cumulativeBuyCost + subscriptionCost) {
             throw new CustomException(ErrorCode.INSUFFICIENT_CASH);
         }
 
-        // Kafka 전송
+        // ✅ 5. Kafka로 청약 요청 전송
         kafkaProducerService.sendSubscriptionRequest(
                 SubscriptionRequestEvent.builder()
                         .customerId(customerId)
@@ -292,10 +289,9 @@ public class TradeServiceImpl implements TradeService {
                         .subscribeDate(now)
                         .build()
         );
-
-        return requestAmount;
-
     }
+
+
 
 
     // 청약 신청 처리 로직

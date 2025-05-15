@@ -15,6 +15,6 @@ public interface TradeService {
 
     void sell(SellEstateRequest request, Long customerId);
 
-    int createSubscription(CreateSubscriptionTradeRequest request, Long customerId);
+    void createSubscription(CreateSubscriptionTradeRequest request, Long customerId);
 
 }
