@@ -84,7 +84,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .estate(estate)
                 .dividend(request.getDividend())
                 .dividendYield(dividendYield)
-                .dividendYieldDate(LocalDateTime.now())
+                .dividendDate(LocalDateTime.now())
                 .build();
         dividendRepository.save(dividend);
 

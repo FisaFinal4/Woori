@@ -93,7 +93,7 @@ public class EstateRedisServiceImpl implements EstateRedisService {
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
         BigDecimal dividendYield = dividendRepository
-                .findTopByEstate_EstateIdOrderByDividendYieldDateDesc(estateId)
+                .findTopByEstate_EstateIdOrderByDividendDateDesc(estateId)
                 .map(Dividend::getDividendYield)
                 .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
 
