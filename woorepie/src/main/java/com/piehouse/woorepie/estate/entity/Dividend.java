@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "dividend_yield")
+@Table(name = "dividend")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -20,7 +20,7 @@ public class Dividend {
     @EqualsAndHashCode.Include
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long dividendYieldId;
+    private Long dividendId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "estate_id", nullable = false)
@@ -33,6 +33,6 @@ public class Dividend {
     private BigDecimal dividendYield;
 
     @CreationTimestamp
-    private LocalDateTime dividendYieldDate;
+    private LocalDateTime dividendDate;
 
 }
