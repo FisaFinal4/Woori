@@ -26,7 +26,7 @@ public class KafkaProducerServiceImpl implements KafkaProducerService {
     // Kafka에 매수, 매도 요청 이벤트 보내기
     @Override
     public void sendOrderCreated(OrderCreatedEvent event) {
-        send(ORDER_CREATED_TOPIC, event);
+        sendWithKey(ORDER_CREATED_TOPIC, event.getEstateId().toString(), event);
     }
 
     // kafka에 customer 회원가입 이벤트 보내기
@@ -41,6 +41,12 @@ public class KafkaProducerServiceImpl implements KafkaProducerService {
         send(TRANSACTION_CREATED_TOPIC, event);
     }
 
+    // Kafka에 청약 요청 이벤트 보내기
+    @Override
+    public void sendSubscriptionRequest(SubscriptionRequestEvent event) {
+        sendWithKey(SUBSCRIPTION_REQUEST_TOPIC, event.getEstateId().toString(), event); // 공통 send() 사용
+    }
+
     private <T> void send(String topic, T event) {
         kafkaTemplate.send(topic, event)
                 .whenComplete((result, ex) -> {
@@ -53,9 +59,16 @@ public class KafkaProducerServiceImpl implements KafkaProducerService {
                 });
     }
 
-    @Override
-    public void sendSubscriptionRequest(SubscriptionRequestEvent event) {
-        send(SUBSCRIPTION_REQUEST_TOPIC, event); // 공통 send() 사용
+    private <T> void sendWithKey(String topic, String key, T event) {
+        kafkaTemplate.send(topic, key, event)
+                .whenComplete((result, ex) -> {
+                    if (ex == null) {
+                        log.info("Kafka 전송 성공 [{}][key:{}]: {}", topic, key, event);
+                    } else {
+                        log.warn("Kafka 전송 실패 [{}][key:{}], retrying...", topic, key, ex);
+                        kafkaRetryUtil.sendWithRetry(topic, key, event, 3);
+                    }
+                });
     }
 
 }
