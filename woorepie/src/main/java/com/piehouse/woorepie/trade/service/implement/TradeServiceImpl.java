@@ -6,7 +6,6 @@ import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
 import com.piehouse.woorepie.estate.dto.RedisEstatePrice;
 import com.piehouse.woorepie.estate.entity.Estate;
-import com.piehouse.woorepie.estate.entity.EstatePrice;
 import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
 import com.piehouse.woorepie.estate.repository.EstateRepository;
 import com.piehouse.woorepie.global.exception.CustomException;
@@ -17,6 +16,11 @@ import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
 import com.piehouse.woorepie.global.kafka.service.KafkaProducerService;
 import com.piehouse.woorepie.subscription.entity.Subscription;
 import com.piehouse.woorepie.trade.dto.request.*;
+import com.piehouse.woorepie.notification.service.NotificationService;
+import com.piehouse.woorepie.trade.dto.request.BuyEstateRequest;
+import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
+import com.piehouse.woorepie.trade.dto.request.RedisEstateTradeValue;
+import com.piehouse.woorepie.trade.dto.request.SellEstateRequest;
 import com.piehouse.woorepie.trade.entity.Trade;
 import com.piehouse.woorepie.trade.repository.RedisTradeRepository;
 import com.piehouse.woorepie.trade.repository.TradeRepository;
@@ -45,6 +49,7 @@ public class TradeServiceImpl implements TradeService {
     private final CustomerRepository customerRepository;
     private final RedisTradeRepository redisOrderRepository;
     private final KafkaProducerService kafkaProducerService;
+    private final NotificationService notificationService;
     private final EstatePriceRepository estatePriceRepository;
     private final EstateRepository estateRepository;
     private final SubscriptionRepository subscriptionRepository;
@@ -58,21 +63,30 @@ public class TradeServiceImpl implements TradeService {
     public Trade saveTrade(Estate estate, Customer seller, Customer buyer, int tradeTokenAmount, int tokenPrice) {
 
         // PostgreSQL 저장
+        LocalDateTime tradeTime = LocalDateTime.now();
+        // 1. PostgreSQL에 거래 내역 저장
         Trade trade = Trade.builder()
                 .estate(estate)
                 .seller(seller)
                 .buyer(buyer)
                 .tradeTokenAmount(tradeTokenAmount)
                 .tokenPrice(tokenPrice)
-                .tradeDate(LocalDateTime.now())
+                .tradeDate(tradeTime)
                 .build();
         Trade savedTrade = tradeRepository.save(trade);
 
-        // Kafka로 거래 체결 이벤트 비동기 전송
+        // 2. Kafka로 거래 체결 이벤트 비동기 전송
         TransactionCreatedEvent event = createEvent(savedTrade);
         kafkaProducerService.sendTransactionCreated(event);
 
-        // 판매자 계좌 업데이트
+        // 3. 사용자에게 알림 전송
+        // 매수자에게 알림 전송
+        notificationService.sendTradeNotification(buyer, estate.getEstateName(), tokenPrice, tradeTokenAmount, tradeTime, true);
+        // 매도자에게 알림 전송
+        notificationService.sendTradeNotification(seller, estate.getEstateName(), tokenPrice, tradeTokenAmount, tradeTime, false);
+
+
+        // 4. 판매자 계좌 업데이트
         Account sellerAccount = accountRepository.findByCustomerAndEstate(seller, estate)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NON_EXIST));
 
@@ -86,7 +100,7 @@ public class TradeServiceImpl implements TradeService {
         sellerAccount.updateTokenAmount(newTokenAmount)
                 .updateTotalAmount(newTotalAmount);
 
-        // 구매자 계좌 업데이트
+        // 5. 구매자 계좌 업데이트
         Account buyerAccount = accountRepository.findByCustomerAndEstate(buyer, estate)
                 .orElseGet(() -> {
                     // 새 계좌 생성 후 저장
