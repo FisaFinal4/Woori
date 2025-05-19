@@ -28,7 +28,8 @@ public class SecurityConfig {
                                 "/agent/create",
                                 "/agent/login",
                                 "/s3-presigned-url/customer",
-                                "/s3-presigned-url/agent"
+                                "/s3-presigned-url/agent",
+                                "/actuator/prometheus"  // ✅ Prometheus 메트릭 접근 허용
                         ).permitAll()
                         .requestMatchers(
                                 "/customer/**"
@@ -37,11 +38,11 @@ public class SecurityConfig {
                                 "/agent/**",
                                 "s3-presigned-url/estate"
                         ).hasRole("AGENT")
-//                        .requestMatchers("**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable);
+
         return http.build();
     }
 
@@ -49,5 +50,4 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-
 }
