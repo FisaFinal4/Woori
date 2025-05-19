@@ -42,7 +42,7 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
 
 
     @Override
-    @KafkaListener(topics = "order.created", groupId = "group-order")
+    @KafkaListener(topics = "order.created")
     public void consumeOrderCreated(OrderCreatedEvent event) {
         log.info("주문 생성 이벤트 수신: {}", event);
         if (event.getTradeTokenAmount() > 0) {
@@ -55,7 +55,7 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
     }
 
     @Override
-    @KafkaListener(topics = "subscription.request", groupId = "subscription-group")
+    @KafkaListener(topics = "subscription.request")
     public void consumeSubscriptionRequest(SubscriptionRequestEvent event) {
         log.info("청약 요청 수신: customerId={}, estateId={}, amount={}, subscribeDate={}",
                 event.getCustomerId(), event.getEstateId(), event.getAmount(), event.getSubscribeDate());
@@ -63,7 +63,7 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
     }
 
     @Override
-    @KafkaListener(topics = "subscription.accept", groupId = "estate-consumer")
+    @KafkaListener(topics = "subscription.accept")
     @Transactional
     public void handleSubscriptionApproval(SubscriptionAcceptMessage message) {
         log.info("[Kafka] 청약 승인 수신");
@@ -114,7 +114,7 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
 
     // 배당금 승인 로직
     @Override
-    @KafkaListener(topics = "dividen.accept", groupId = "estate-consumer")
+    @KafkaListener(topics = "dividen.accept")
     @Transactional
     public void handleDividendApproval(DividendAcceptMessage message) {
 
@@ -162,7 +162,7 @@ public class KafkaConsumerServiceImpl implements KafkaConsumerService {
 
     // 매물 매각 승인 로직
     @Override
-    @KafkaListener(topics = "exit.accept", groupId = "estate-consumer")
+    @KafkaListener(topics = "exit.accept")
     @Transactional
     public void handleExitApproval(ExitAcceptMessage message) {
         Long estateId = message.getEstateId();
