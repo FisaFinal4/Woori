@@ -26,7 +26,22 @@ public class SecurityConfig {
                         .maxSessionsPreventsLogin(false)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/customer/login", "/customer/create", "/sms/**").permitAll()
+                        .requestMatchers(
+                                "/customer/login",
+                                "/customer/create",
+                                "/sms/**",
+                                "/agent/create",
+                                "/agent/login",
+                                "/s3-presigned-url/customer",
+                                "/s3-presigned-url/agent"
+                        ).permitAll()
+                        .requestMatchers(
+                                "/customer/**"
+                        ).hasRole("CUSTOMER")
+                        .requestMatchers(
+                                "/agent/**",
+                                "s3-presigned-url/estate"
+                        ).hasRole("AGENT")
 //                        .requestMatchers("**").permitAll()
                         .anyRequest().authenticated()
                 )

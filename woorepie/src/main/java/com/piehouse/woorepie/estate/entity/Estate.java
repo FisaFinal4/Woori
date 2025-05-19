@@ -3,6 +3,7 @@ package com.piehouse.woorepie.estate.entity;
 import com.piehouse.woorepie.agent.entity.Agent;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -75,14 +76,35 @@ public class Estate {
     @Column(nullable = false, length = 1000)
     private String appraisalReportUrl;
 
-    @Column(nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    @CreationTimestamp
+    @Column(updatable = false)
     private LocalDateTime estateRegistrationDate;
 
-    @Column(length = 20)
+    @Column(nullable = false, length = 20)
     private String estateUseZone;
 
+    @Column(nullable = false)
     private BigDecimal totalEstateArea;
 
+    @Column(nullable = false)
     private BigDecimal tradedEstateArea;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private SubState subState = SubState.READY;
+
+    // 매물 정보 수정
+    public Estate updateDescription(String newDescription) {
+        this.estateDescription = newDescription;
+        return this;
+    }
+
+    public void updateSubStateToSuccess() {
+        this.subState = SubState.SUCCESS;
+    }
+
+    public void updateSubStateToExit() {
+        this.subState = SubState.EXIT;
+    }
 
 }

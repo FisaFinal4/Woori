@@ -1,6 +1,7 @@
 package com.piehouse.woorepie.global.kafka.service.impliment;
 
 import com.piehouse.woorepie.global.kafka.dto.CustomerCreatedEvent;
+import com.piehouse.woorepie.global.kafka.dto.SubscriptionRequestEvent;
 import com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent;
 import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
 import com.piehouse.woorepie.global.kafka.service.KafkaProducerService;
@@ -20,11 +21,12 @@ public class KafkaProducerServiceImpl implements KafkaProducerService {
     private static final String ORDER_CREATED_TOPIC = "order.created";
     private static final String TRANSACTION_CREATED_TOPIC = "transaction.created";
     private static final String CUSTOMER_CREATED_TOPIC = "customer.created";
+    private static final String SUBSCRIPTION_REQUEST_TOPIC = "subscription.request";
 
     // Kafka에 매수, 매도 요청 이벤트 보내기
     @Override
     public void sendOrderCreated(OrderCreatedEvent event) {
-        send(ORDER_CREATED_TOPIC, event);
+        sendWithKey(ORDER_CREATED_TOPIC, event.getEstateId().toString(), event);
     }
 
     // kafka에 customer 회원가입 이벤트 보내기
@@ -39,6 +41,12 @@ public class KafkaProducerServiceImpl implements KafkaProducerService {
         send(TRANSACTION_CREATED_TOPIC, event);
     }
 
+    // Kafka에 청약 요청 이벤트 보내기
+    @Override
+    public void sendSubscriptionRequest(SubscriptionRequestEvent event) {
+        sendWithKey(SUBSCRIPTION_REQUEST_TOPIC, event.getEstateId().toString(), event); // 공통 send() 사용
+    }
+
     private <T> void send(String topic, T event) {
         kafkaTemplate.send(topic, event)
                 .whenComplete((result, ex) -> {
@@ -47,6 +55,18 @@ public class KafkaProducerServiceImpl implements KafkaProducerService {
                     } else {
                         log.warn("Kafka 전송 실패 [{}], retrying...", topic, ex);
                         kafkaRetryUtil.sendWithRetry(topic, event, 3);
+                    }
+                });
+    }
+
+    private <T> void sendWithKey(String topic, String key, T event) {
+        kafkaTemplate.send(topic, key, event)
+                .whenComplete((result, ex) -> {
+                    if (ex == null) {
+                        log.info("Kafka 전송 성공 [{}][key:{}]: {}", topic, key, event);
+                    } else {
+                        log.warn("Kafka 전송 실패 [{}][key:{}], retrying...", topic, key, ex);
+                        kafkaRetryUtil.sendWithRetry(topic, key, event, 3);
                     }
                 });
     }

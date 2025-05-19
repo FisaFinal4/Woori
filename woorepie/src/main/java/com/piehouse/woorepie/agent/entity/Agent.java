@@ -3,6 +3,7 @@ package com.piehouse.woorepie.agent.entity;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -35,10 +36,14 @@ public class Agent {
     @Column(nullable = false, length = 20, unique = true)
     private String agentPhoneNumber;
 
+    @Column(nullable = false)
     private LocalDate agentDateOfBirth;
 
     @Column(length = 1000)
     private String agentIdentificationUrl;
+
+    @Column(nullable = false, length = 1000)
+    private String agentCertUrl;
 
     @Column(nullable = false, length = 30)
     private String businessName;
@@ -53,18 +58,13 @@ public class Agent {
     private String businessAddress;
 
     @Column(nullable = false, length = 1000)
-    private String agentCertUrl;
-
-    @Column(nullable = false, length = 1000)
     private String warrantUrl;
 
-    @Column(nullable = false,
-            columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    @CreationTimestamp
+    @Column(updatable = false)
     private LocalDateTime agentJoinDate;
 
     @Column(length = 100)
     private String agentKyc;
-
-    private LocalDateTime agentKycDate;
 
 }

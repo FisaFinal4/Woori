@@ -4,12 +4,18 @@ import com.piehouse.woorepie.customer.entity.Account;
 import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.customer.repository.AccountRepository;
 import com.piehouse.woorepie.customer.repository.CustomerRepository;
+import com.piehouse.woorepie.estate.dto.RedisEstatePrice;
 import com.piehouse.woorepie.estate.entity.Estate;
+import com.piehouse.woorepie.estate.repository.EstatePriceRepository;
+import com.piehouse.woorepie.estate.repository.EstateRepository;
 import com.piehouse.woorepie.global.exception.CustomException;
 import com.piehouse.woorepie.global.exception.ErrorCode;
+import com.piehouse.woorepie.global.kafka.dto.SubscriptionRequestEvent;
 import com.piehouse.woorepie.global.kafka.dto.TransactionCreatedEvent;
 import com.piehouse.woorepie.global.kafka.dto.OrderCreatedEvent;
 import com.piehouse.woorepie.global.kafka.service.KafkaProducerService;
+import com.piehouse.woorepie.subscription.entity.Subscription;
+import com.piehouse.woorepie.trade.dto.request.*;
 import com.piehouse.woorepie.notification.service.NotificationService;
 import com.piehouse.woorepie.trade.dto.request.BuyEstateRequest;
 import com.piehouse.woorepie.trade.dto.request.RedisCustomerTradeValue;
@@ -21,11 +27,15 @@ import com.piehouse.woorepie.trade.repository.TradeRepository;
 import com.piehouse.woorepie.trade.service.TradeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import com.piehouse.woorepie.subscription.repository.SubscriptionRepository;
+import org.springframework.transaction.support.TransactionTemplate;
+import com.piehouse.woorepie.estate.service.EstateRedisService;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -40,10 +50,19 @@ public class TradeServiceImpl implements TradeService {
     private final RedisTradeRepository redisOrderRepository;
     private final KafkaProducerService kafkaProducerService;
     private final NotificationService notificationService;
+    private final EstatePriceRepository estatePriceRepository;
+    private final EstateRepository estateRepository;
+    private final SubscriptionRepository subscriptionRepository;
+    private final StringRedisTemplate redisTemplate;
+    private final PlatformTransactionManager transactionManager;
+    private static final String REMAINING_TOKENS_KEY_FORMAT = "subscription:%s:remaining-tokens";
+    private final EstateRedisService estateRedisService;
 
     @Override
     @Transactional
     public Trade saveTrade(Estate estate, Customer seller, Customer buyer, int tradeTokenAmount, int tokenPrice) {
+
+        // PostgreSQL 저장
         LocalDateTime tradeTime = LocalDateTime.now();
         // 1. PostgreSQL에 거래 내역 저장
         Trade trade = Trade.builder()
@@ -54,7 +73,6 @@ public class TradeServiceImpl implements TradeService {
                 .tokenPrice(tokenPrice)
                 .tradeDate(tradeTime)
                 .build();
-
         Trade savedTrade = tradeRepository.save(trade);
 
         // 2. Kafka로 거래 체결 이벤트 비동기 전송
@@ -75,9 +93,12 @@ public class TradeServiceImpl implements TradeService {
         // 거래 금액 계산
         int tradeAmount = tradeTokenAmount * tokenPrice;
 
+        int newTokenAmount = sellerAccount.getAccountTokenAmount() - tradeTokenAmount;
+        int newTotalAmount = sellerAccount.getTotalAccountAmount() - tradeAmount;
+
         // 판매자 계좌 업데이트 - 토큰과 금액 모두 감소
-        sellerAccount.updateTokenAmount(sellerAccount.getAccountTokenAmount() - tradeTokenAmount)
-                .updateTotalAmount(sellerAccount.getTotalAccountAmount() - tradeAmount);
+        sellerAccount.updateTokenAmount(newTokenAmount)
+                .updateTotalAmount(newTotalAmount);
 
         // 5. 구매자 계좌 업데이트
         Account buyerAccount = accountRepository.findByCustomerAndEstate(buyer, estate)
@@ -97,9 +118,11 @@ public class TradeServiceImpl implements TradeService {
                 .updateTotalAmount(buyerAccount.getTotalAccountAmount() + tradeAmount);
 
         return savedTrade;
+
     }
 
     private TransactionCreatedEvent createEvent(Trade trade) {
+
         return TransactionCreatedEvent.builder()
                 .estateId(trade.getEstate().getEstateId())
                 .tradeId(trade.getTradeId())
@@ -109,24 +132,12 @@ public class TradeServiceImpl implements TradeService {
                 .tradeTokenAmount(trade.getTradeTokenAmount())
                 .tradeDate(trade.getTradeDate())
                 .build();
+
     }
 
     @Override
-    public List<Trade> getTradesByEstateId(Long estateId) {
-        return tradeRepository.findByEstate_EstateId(estateId);
-    }
-
-    @Override
-    public List<Trade> getTradesBySellerId(Long sellerId) {
-        return tradeRepository.findBySeller_CustomerId(sellerId);
-    }
-
-    @Override
-    public List<Trade> getTradesByBuyerId(Long buyerId) {
-        return tradeRepository.findByBuyer_CustomerId(buyerId);
-    }
-
     public void buy(BuyEstateRequest request, Long customerId) {
+
         int amount = request.getTradeTokenAmount();
         int price = request.getTokenPrice();
 
@@ -142,9 +153,11 @@ public class TradeServiceImpl implements TradeService {
                 .build();
         kafkaProducerService.sendOrderCreated(msg);
         log.info("[매수 Kafka 전송 완료] 고객: {}, 수량: {}, 가격: {}", customerId, amount, price);
+
     }
 
     private boolean isValidBuyRequest(Long customerId, int newTokenAmount, int newTokenPrice) {
+
         int newCost = newTokenAmount * newTokenPrice;
         int cumCost = getCumulativeBuyCost(customerId);
 
@@ -156,9 +169,11 @@ public class TradeServiceImpl implements TradeService {
                 customerId, cumCost, newCost, cumCost + newCost, balance);
 
         return balance >= cumCost + newCost;
+
     }
 
     private int getCumulativeBuyCost(Long customerId) {
+
         Set<RedisCustomerTradeValue> orders = redisOrderRepository.getCustomerBuyOrders(customerId);
         if (orders == null || orders.isEmpty()) {
             log.info("[누적매수] 데이터없음 - customer:{}", customerId);
@@ -168,12 +183,16 @@ public class TradeServiceImpl implements TradeService {
                 .filter(Objects::nonNull)
                 .mapToInt(o -> o.getTradeTokenAmount() * o.getTokenPrice())
                 .sum();
+
     }
 
     @Override
     public void sell(SellEstateRequest request, Long customerId) {
+
         Long estateId = request.getEstateId();
-        int sellAmt = request.getTradeTokenAmount();
+
+        // 입력값이 양수더라도 매도(-)기 때문에 음수로 변환해줌
+        int sellAmt = -Math.abs(request.getTradeTokenAmount());
 
         if (!isValidSellRequest(customerId, estateId, sellAmt)) {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
@@ -187,9 +206,11 @@ public class TradeServiceImpl implements TradeService {
                 .build();
         kafkaProducerService.sendOrderCreated(msg);
         log.info("[매도 Kafka 전송 완료] 고객: {}, 부동산: {}, 수량: {}", customerId, estateId, sellAmt);
+
     }
 
     private boolean isValidSellRequest(Long customerId, Long estateId, int newSell) {
+
         log.info("inValidSellRequest는 들어옴");
         int cumSell = getCumulativeSellAmount(customerId, estateId);
         int owned = accountRepository
@@ -207,21 +228,137 @@ public class TradeServiceImpl implements TradeService {
         );
 
         return owned + cumSell + newSell >= 0;
+
     }
 
     private int getCumulativeSellAmount(Long customerId, Long estateId) {
-        System.out.println("getCumulativeSell 들어옴");
+
+        log.info("getCumulativeSell 들어옴");
         Set<RedisEstateTradeValue> orders = redisOrderRepository.getEstateSellOrders(estateId);
-        log.info("매도 요청 누적합 계산을 위한 주문 리스트 확인", orders);
+        log.info("매도 요청 누적합 계산을 위한 주문 리스트 확인: {}", orders);
+
         if (orders == null || orders.isEmpty()) {
             log.info("[누적매도] 데이터없음 - estate:{}, customer:{}", estateId, customerId);
             return 0;
         }
+
         return orders.stream()
                 .filter(Objects::nonNull)
                 .filter(o -> o.getCustomerId() != null)
                 .filter(o -> o.getCustomerId().equals(customerId) && o.getTradeTokenAmount() < 0)
                 .mapToInt(RedisEstateTradeValue::getTradeTokenAmount)
                 .sum();
+
     }
+
+    @Override
+    @Transactional
+    public void createSubscription(CreateSubscriptionTradeRequest request, Long customerId) {
+        Long estateId = request.getEstateId();
+        int requestAmount = request.getSubAmount();
+        LocalDateTime now = LocalDateTime.now();
+
+        log.info("[청약 신청 시작] customerId: {}, estateId: {}, 신청수량: {}", customerId, estateId, requestAmount);
+
+        // ✅ 1. PostgreSQL 조회해서 청약 기간 검증
+        Estate estate = estateRepository.findById(estateId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
+        LocalDateTime subStart = estate.getSubStartDate();
+        LocalDateTime subEnd = estate.getSubEndDate();
+        if (subStart == null || subEnd == null || now.isBefore(subStart) || now.isAfter(subEnd)) {
+            throw new CustomException(ErrorCode.SUBSCRIPTION_PERIOD_INVALID);
+        }
+
+        // ✅ 2. Redis에서 1토큰당 가격 조회
+        RedisEstatePrice redisPrice = estateRedisService.getRedisEstatePrice(estateId);
+        int tokenPrice = redisPrice.getEstateTokenPrice();
+        int subscriptionCost = requestAmount * tokenPrice;
+
+        // ✅ 3. Redis에서 고객의 기존 매수 요청 금액 조회
+        Set<RedisCustomerTradeValue> orders = redisOrderRepository.getCustomerBuyOrders(customerId);
+        int cumulativeBuyCost = orders == null ? 0 :
+                orders.stream()
+                        .filter(Objects::nonNull)
+                        .mapToInt(o -> o.getTradeTokenAmount() * o.getTokenPrice())
+                        .sum();
+
+        // ✅ 4. PostgreSQL: 고객 계좌 조회
+        Account account = accountRepository.findByCustomer_CustomerIdAndEstate_EstateId(customerId, estateId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NON_EXIST));
+        int userBalance = account.getTotalAccountAmount();
+
+        log.info("[청약 검증] customerId: {}, 기존매수금액: {}, 청약금액: {}, 총합: {}, 잔액: {}",
+                customerId, cumulativeBuyCost, subscriptionCost, cumulativeBuyCost + subscriptionCost, userBalance);
+
+        if (userBalance < cumulativeBuyCost + subscriptionCost) {
+            throw new CustomException(ErrorCode.INSUFFICIENT_CASH);
+        }
+
+        // ✅ 5. Kafka로 청약 요청 전송
+        kafkaProducerService.sendSubscriptionRequest(
+                SubscriptionRequestEvent.builder()
+                        .customerId(customerId)
+                        .estateId(estateId)
+                        .amount(requestAmount)
+                        .subscribeDate(now)
+                        .build()
+        );
+    }
+
+
+
+
+    // 청약 신청 처리 로직
+    @Transactional
+    public void processSubscription(Long estateId, Long customerId, int requestedAmount, int tokenPrice) {
+        // 1. Redis 트랜잭션 시작
+        String redisKey = String.format(REMAINING_TOKENS_KEY_FORMAT, estateId);
+        Long newRemaining = redisTemplate.opsForValue().decrement(redisKey, requestedAmount);
+
+        if (newRemaining == null || newRemaining < 0) {
+            redisTemplate.opsForValue().increment(redisKey, requestedAmount);
+            throw new CustomException(ErrorCode.TOKEN_INSUFFICIENT);
+        }
+
+        try {
+            // 2. PostgreSQL 트랜잭션 시작 (내부)
+            executeInTransaction(() -> {
+                Estate estate = estateRepository.findById(estateId)
+                        .orElseThrow(() -> new CustomException(ErrorCode.ESTATE_NOT_FOUND));
+
+                Customer customer = customerRepository.findById(customerId)
+                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+                // 청약 저장
+                Subscription subscription = Subscription.builder()
+                        .estate(estate) // 실제 엔티티 주입
+                        .customer(customer) // 실제 엔티티 주입
+                        .subTokenAmount(requestedAmount)
+                        .build(); // subDate는 @CreationTimestamp로 자동 처리
+
+                subscriptionRepository.save(subscription);
+
+                // 고객 계좌 업데이트
+                int totalPrice = requestedAmount * tokenPrice;
+                customer.decreaseBalance(totalPrice); // 보유한 계좌에서 감소
+                customerRepository.save(customer);
+            });
+        } catch (Exception e) {
+            // PostgreSQL 트랜잭션 실패 → Redis 롤백
+            redisTemplate.opsForValue().increment(redisKey, requestedAmount);
+            throw e;
+        }
+    }
+
+    private void executeInTransaction(Runnable action) {
+
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        transactionTemplate.execute(status -> {
+            action.run();
+            return null;
+        });
+
+    }
+
 }
+

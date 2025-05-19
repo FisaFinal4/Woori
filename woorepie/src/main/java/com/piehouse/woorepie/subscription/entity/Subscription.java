@@ -4,6 +4,7 @@ import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.estate.entity.Estate;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -33,10 +34,8 @@ public class Subscription {
     @Column(nullable = false)
     private Integer subTokenAmount;
 
-    @Column(nullable = false)
-    private Short subState;
-
-    @Column(nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    @CreationTimestamp
+    @Column(updatable = false)
     private LocalDateTime subDate;
 
 }

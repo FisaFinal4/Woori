@@ -23,6 +23,9 @@ public class KafkaConsumerConfig {
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
+    @Value("${KAFKA_CONSUMER_GROUP}")
+    private String groupId;
+
     // 1. ConsumerFactory 설정 (역직렬화 오류 처리 포함)
     @Bean
     public ConsumerFactory<String, Object> consumerFactory() {
@@ -39,8 +42,7 @@ public class KafkaConsumerConfig {
 
         // JSON 역직렬화 대상 클래스 및 패키지 신뢰 설정
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.piehouse.woorepie.global.kafka.dto");
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "order-group"); // Consumer 그룹 ID
-        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, OrderCreatedEvent.class.getName()); // 기본 DTO 타입
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId); // Consumer 그룹 ID
 
         return new DefaultKafkaConsumerFactory<>(props);
     }

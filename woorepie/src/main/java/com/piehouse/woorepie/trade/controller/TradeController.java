@@ -1,15 +1,18 @@
 package com.piehouse.woorepie.trade.controller;
 
 import com.piehouse.woorepie.customer.dto.SessionCustomer;
-import com.piehouse.woorepie.global.exception.CustomException;
-import com.piehouse.woorepie.global.exception.ErrorCode;
 import com.piehouse.woorepie.global.response.ApiResponse;
+import com.piehouse.woorepie.global.response.ApiResponseUtil;
 import com.piehouse.woorepie.trade.dto.request.BuyEstateRequest;
 import com.piehouse.woorepie.trade.dto.request.SellEstateRequest;
+import com.piehouse.woorepie.trade.dto.request.CreateSubscriptionTradeRequest;
 import com.piehouse.woorepie.trade.service.TradeService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -19,53 +22,41 @@ public class TradeController {
 
     private final TradeService tradeService;
 
+    /**
+     * 매수 요청 (고객 로그인 필요)
+     */
     @PostMapping("/buy")
     public ResponseEntity<ApiResponse<String>> buy(
-            @RequestBody BuyEstateRequest request
+            @RequestBody @Valid BuyEstateRequest request,
+            @AuthenticationPrincipal SessionCustomer sessionCustomer,
+            HttpServletRequest httpRequest
     ) {
-        Object principal = SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getPrincipal();
-
-        if (!(principal instanceof SessionCustomer sc)) {
-            throw new CustomException(ErrorCode.UNAUTHORIZED);
-        }
-
-        tradeService.buy(request, sc.getCustomerId());
-
-        return ResponseEntity.ok(
-                ApiResponse.of(
-                        200,
-                        "매수 요청이 성공적으로 접수되었습니다.",
-                        "/trade/buy",
-                        null
-                )
-        );
+        tradeService.buy(request, sessionCustomer.getCustomerId());
+        return ApiResponseUtil.of(HttpStatus.OK, "매수 요청 성공", null, httpRequest);
     }
 
+    /**
+     * 매도 요청 (고객 로그인 필요)
+     */
     @PostMapping("/sell")
     public ResponseEntity<ApiResponse<String>> sell(
-            @RequestBody SellEstateRequest request
+            @RequestBody @Valid SellEstateRequest request,
+            @AuthenticationPrincipal SessionCustomer sessionCustomer,
+            HttpServletRequest httpRequest
     ) {
-        Object principal = SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getPrincipal();
-
-        if (!(principal instanceof SessionCustomer sc)) {
-            throw new CustomException(ErrorCode.UNAUTHORIZED);
-        }
-
-        tradeService.sell(request, sc.getCustomerId());
-
-        return ResponseEntity.ok(
-                ApiResponse.of(
-                        200,
-                        "매도 요청이 성공적으로 접수되었습니다.",
-                        "/trade/sell",
-                        null
-                )
-        );
+        tradeService.sell(request, sessionCustomer.getCustomerId());
+        return ApiResponseUtil.of(HttpStatus.OK, "매도 요청 성공", null, httpRequest);
     }
+    
+    //청약 신청 성공
+    @PostMapping("/subscription")
+    public ResponseEntity<ApiResponse<Void>> subscribe(
+            @RequestBody @Valid CreateSubscriptionTradeRequest request,
+            @AuthenticationPrincipal SessionCustomer sessionCustomer,
+            HttpServletRequest httpRequest
+    ) {
+        tradeService.createSubscription(request, sessionCustomer.getCustomerId());
+        return ApiResponseUtil.of(HttpStatus.OK, "청약 요청 성공", null, httpRequest);
+    }
+
 }

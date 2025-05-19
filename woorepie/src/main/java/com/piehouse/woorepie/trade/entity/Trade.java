@@ -4,6 +4,7 @@ import com.piehouse.woorepie.customer.entity.Customer;
 import com.piehouse.woorepie.estate.entity.Estate;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -40,7 +41,8 @@ public class Trade {
     @Column(nullable = false)
     private Integer tradeTokenAmount;
 
-    @Column(nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    @CreationTimestamp
+    @Column(updatable = false)
     private LocalDateTime tradeDate;
 
 }

@@ -3,6 +3,7 @@ package com.piehouse.woorepie.notice.entity;
 import com.piehouse.woorepie.estate.entity.Estate;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -34,7 +35,15 @@ public class Notice {
     @Column(length = 1000)
     private String noticeFileUrl;
 
-    @Column(nullable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    @CreationTimestamp
+    @Column(updatable = false)
     private LocalDateTime noticeDate;
+
+    // 공시 수정
+    public void updateNotice(String title, String content, String fileUrl) {
+        this.noticeTitle = title;
+        this.noticeContent = content;
+        this.noticeFileUrl = fileUrl;
+    }
 
 }

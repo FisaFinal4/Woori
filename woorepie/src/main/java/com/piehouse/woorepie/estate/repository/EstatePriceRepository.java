@@ -4,11 +4,14 @@ import com.piehouse.woorepie.estate.entity.EstatePrice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface EstatePriceRepository extends JpaRepository<EstatePrice, Long> {
 
     Optional<EstatePrice> findTopByEstate_EstateIdOrderByEstatePriceDateDesc(Long estateId);
+
+    List<EstatePrice> findAllByEstate_EstateIdOrderByEstatePriceDateDesc(Long estateId);
 
 }

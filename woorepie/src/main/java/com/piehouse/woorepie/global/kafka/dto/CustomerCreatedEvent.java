@@ -3,7 +3,6 @@ package com.piehouse.woorepie.global.kafka.dto;
 import com.piehouse.woorepie.customer.entity.Customer;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
 @Getter
 @Builder
