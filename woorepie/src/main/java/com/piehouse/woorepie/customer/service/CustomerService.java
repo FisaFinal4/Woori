@@ -1,5 +1,6 @@
 package com.piehouse.woorepie.customer.service;
 
+import com.piehouse.woorepie.customer.dto.SessionCustomer;
 import com.piehouse.woorepie.customer.dto.request.CreateCustomerRequest;
 import com.piehouse.woorepie.customer.dto.response.GetCustomerSubscriptionResponse;
 import com.piehouse.woorepie.customer.dto.request.LoginCustomerRequest;
@@ -9,6 +10,7 @@ import com.piehouse.woorepie.customer.dto.response.GetCustomerTradeResponse;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
+import java.util.Map;
 
 public interface CustomerService {
 
@@ -27,5 +29,7 @@ public interface CustomerService {
     List<GetCustomerSubscriptionResponse> getCustomerSubscription(Long customerId);
 
     List<GetCustomerTradeResponse> getCustomerTrade(Long customerId);
+
+    Map<String, Object> getAuthStatus(SessionCustomer session);
 
 }

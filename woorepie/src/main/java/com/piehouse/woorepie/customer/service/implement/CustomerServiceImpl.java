@@ -37,10 +37,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Stream;
 
 @Service
@@ -339,6 +336,20 @@ public class CustomerServiceImpl implements CustomerService {
                 .toList();
 
         return tradeResponses;
+
+    }
+
+    public Map<String, Object> getAuthStatus(SessionCustomer session) {
+        Map<String, Object> result = new HashMap<>();
+
+        if (session != null) {
+            result.put("authenticated", true);
+            result.put("user", session);
+        } else {
+            result.put("authenticated", false);
+        }
+
+        return result;
 
     }
 

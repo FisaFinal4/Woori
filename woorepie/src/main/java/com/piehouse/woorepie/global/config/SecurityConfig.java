@@ -29,6 +29,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/customer/login",
                                 "/customer/create",
+                                "/customer/check-email",
                                 "/sms/**",
                                 "/agent/create",
                                 "/agent/login",
